@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminPage } from "./pages/AdminPage";
 import { DiffPage } from "./pages/DiffPage";
+import { NetworkPage } from "./pages/NetworkPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ScanDetailPage } from "./pages/ScanDetailPage";
 import { ScansPage } from "./pages/ScansPage";
@@ -54,6 +55,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DiffPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/network"
+              element={
+                <ProtectedRoute>
+                  <NetworkPage />
                 </ProtectedRoute>
               }
             />

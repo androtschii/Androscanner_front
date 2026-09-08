@@ -58,4 +58,5 @@ export const api = {
   analyticsSummary: (token) => request("/analytics/summary", { token }),
   diffScans: (token, base, compare) =>
     request(`/analytics/diff?base=${base}&compare=${compare}`, { token }),
+  networkMap: (token) => request("/analytics/network", { token }),
 };

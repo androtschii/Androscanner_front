@@ -23,6 +23,9 @@ export function Header() {
           <NavLink to="/scans" className={navClass} end>
             Сканы
           </NavLink>
+          <NavLink to="/network" className={navClass}>
+            Карта
+          </NavLink>
           <NavLink to="/diff" className={navClass}>
             Сравнение
           </NavLink>
