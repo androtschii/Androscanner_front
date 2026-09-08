@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Header } from "../components/Header";
+import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
-
-const ROLE_LABEL = { admin: "Администратор", analyst: "Аналитик", viewer: "Наблюдатель" };
-const STATUS_LABEL = { queued: "в очереди", running: "выполняется", done: "готово", failed: "ошибка" };
+import { isPending } from "../lib/scanStatus";
 
 export function ScansPage() {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState("");
@@ -16,17 +18,27 @@ export function ScansPage() {
 
   const canScan = user?.role === "admin" || user?.role === "analyst";
 
-  const reload = useCallback(() => {
-    setLoading(true);
-    api
-      .listScans(token)
-      .then(setScans)
-      .finally(() => setLoading(false));
+  const reload = useCallback(async () => {
+    try {
+      setScans(await api.listScans(token));
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // Пока хоть один скан в работе — подтягиваем статусы сами.
+  // Зависим от флага, а не от массива scans: иначе интервал пересоздавался бы
+  // на каждом обновлении списка.
+  const anyPending = scans.some((s) => isPending(s.status));
+  useEffect(() => {
+    if (!anyPending) return;
+    const timer = setInterval(reload, 2000);
+    return () => clearInterval(timer);
+  }, [anyPending, reload]);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -45,22 +57,9 @@ export function ScansPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-        <h1 className="text-lg font-semibold">Network Scanner</h1>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-slate-400">
-            {user?.username} · {ROLE_LABEL[user?.role] ?? user?.role}
-          </span>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 hover:bg-slate-800"
-          >
-            Выйти
-          </button>
-        </div>
-      </header>
+      <Header />
 
-      <main className="mx-auto max-w-3xl px-6 py-8">
+      <main className="mx-auto max-w-4xl px-6 py-8">
         {canScan && (
           <form
             onSubmit={handleCreate}
@@ -89,9 +88,9 @@ export function ScansPage() {
                 value={profile}
                 onChange={(e) => setProfile(e.target.value)}
               >
-                <option value="discovery">discovery</option>
-                <option value="quick">quick</option>
-                <option value="full">full</option>
+                <option value="discovery">discovery — ARP, нужны права админа</option>
+                <option value="quick">quick — 100 портов, без прав</option>
+                <option value="full">full — все порты + ОС, нужны права админа</option>
               </select>
             </div>
             <button
@@ -131,10 +130,16 @@ export function ScansPage() {
                 </tr>
               )}
               {scans.map((s) => (
-                <tr key={s.id} className="border-t border-slate-800">
+                <tr
+                  key={s.id}
+                  onClick={() => navigate(`/scans/${s.id}`)}
+                  className="cursor-pointer border-t border-slate-800 hover:bg-slate-900"
+                >
                   <td className="px-4 py-2 font-mono">{s.target}</td>
                   <td className="px-4 py-2">{s.profile}</td>
-                  <td className="px-4 py-2">{STATUS_LABEL[s.status] ?? s.status}</td>
+                  <td className="px-4 py-2">
+                    <StatusBadge status={s.status} />
+                  </td>
                   <td className="px-4 py-2 text-slate-400">
                     {new Date(s.created_at).toLocaleString("ru-RU")}
                   </td>

@@ -32,6 +32,8 @@ export const api = {
     request("/auth/login", { method: "POST", form: { username, password } }),
   me: (token) => request("/users/me", { token }),
   listScans: (token) => request("/scans", { token }),
+  getScan: (token, id) => request(`/scans/${id}`, { token }),
   createScan: (token, target, profile) =>
     request("/scans", { method: "POST", token, body: { target, profile } }),
+  listScopes: (token) => request("/scopes", { token }),
 };
