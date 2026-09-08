@@ -23,6 +23,9 @@ export function Header() {
           <NavLink to="/scans" className={navClass} end>
             Сканы
           </NavLink>
+          <NavLink to="/diff" className={navClass}>
+            Сравнение
+          </NavLink>
           {/* Ссылка только админу — маршрут всё равно закрыт и на бэкенде */}
           {user?.role === "admin" && (
             <NavLink to="/admin" className={navClass}>

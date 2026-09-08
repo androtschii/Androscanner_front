@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminPage } from "./pages/AdminPage";
+import { DiffPage } from "./pages/DiffPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ScanDetailPage } from "./pages/ScanDetailPage";
 import { ScansPage } from "./pages/ScansPage";
@@ -45,6 +46,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ScanDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/diff"
+              element={
+                <ProtectedRoute>
+                  <DiffPage />
                 </ProtectedRoute>
               }
             />
