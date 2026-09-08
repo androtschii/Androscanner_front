@@ -3,6 +3,11 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+logs
+*.log
+
+# Editor / OS
+.DS_Store
 
 # Env
 .env
