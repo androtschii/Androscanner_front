@@ -16,7 +16,7 @@ export function LoginPage() {
     setBusy(true);
     try {
       await login(username, password);
-      navigate("/scans");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.status === 401 ? "Неверный логин или пароль" : err.message);
     } finally {

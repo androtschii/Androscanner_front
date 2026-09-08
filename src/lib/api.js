@@ -53,4 +53,7 @@ export const api = {
 
   // ── журнал действий (только admin) ──
   listAudit: (token) => request("/audit", { token }),
+
+  // ── аналитика ──
+  analyticsSummary: (token) => request("/analytics/summary", { token }),
 };

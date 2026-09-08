@@ -13,10 +13,13 @@ export function Header() {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-6 py-4">
       <div className="flex items-center gap-6">
-        <Link to="/scans" className="text-lg font-semibold hover:text-sky-400">
+        <Link to="/dashboard" className="text-lg font-semibold hover:text-sky-400">
           Androscanner
         </Link>
         <nav className="flex items-center gap-4 text-sm">
+          <NavLink to="/dashboard" className={navClass}>
+            Дашборд
+          </NavLink>
           <NavLink to="/scans" className={navClass} end>
             Сканы
           </NavLink>
