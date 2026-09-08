@@ -28,12 +28,29 @@ async function request(path, { method = "GET", token, body, form } = {}) {
 }
 
 export const api = {
+  // ── auth ──
   login: (username, password) =>
     request("/auth/login", { method: "POST", form: { username, password } }),
   me: (token) => request("/users/me", { token }),
+
+  // ── сканы ──
   listScans: (token) => request("/scans", { token }),
   getScan: (token, id) => request(`/scans/${id}`, { token }),
   createScan: (token, target, profile) =>
     request("/scans", { method: "POST", token, body: { target, profile } }),
+
+  // ── allowed scope (запись — только admin) ──
   listScopes: (token) => request("/scopes", { token }),
+  createScope: (token, cidr, description) =>
+    request("/scopes", { method: "POST", token, body: { cidr, description } }),
+  deleteScope: (token, id) => request(`/scopes/${id}`, { method: "DELETE", token }),
+
+  // ── пользователи (только admin) ──
+  listUsers: (token) => request("/users", { token }),
+  createUser: (token, username, password, role) =>
+    request("/users", { method: "POST", token, body: { username, password, role } }),
+  deleteUser: (token, id) => request(`/users/${id}`, { method: "DELETE", token }),
+
+  // ── журнал действий (только admin) ──
+  listAudit: (token) => request("/audit", { token }),
 };

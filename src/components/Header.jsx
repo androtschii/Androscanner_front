@@ -1,16 +1,34 @@
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_LABEL = { admin: "Администратор", analyst: "Аналитик", viewer: "Наблюдатель" };
+
+function navClass({ isActive }) {
+  return isActive ? "text-sky-400" : "text-slate-400 hover:text-slate-100";
+}
 
 export function Header() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-      <Link to="/scans" className="text-lg font-semibold hover:text-sky-400">
-        Androscanner
-      </Link>
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-6 py-4">
+      <div className="flex items-center gap-6">
+        <Link to="/scans" className="text-lg font-semibold hover:text-sky-400">
+          Androscanner
+        </Link>
+        <nav className="flex items-center gap-4 text-sm">
+          <NavLink to="/scans" className={navClass} end>
+            Сканы
+          </NavLink>
+          {/* Ссылка только админу — маршрут всё равно закрыт и на бэкенде */}
+          {user?.role === "admin" && (
+            <NavLink to="/admin" className={navClass}>
+              Администрирование
+            </NavLink>
+          )}
+        </nav>
+      </div>
+
       <div className="flex items-center gap-4 text-sm">
         <span className="text-slate-400">
           {user?.username} · {ROLE_LABEL[user?.role] ?? user?.role}
