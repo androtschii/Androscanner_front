@@ -113,6 +113,8 @@ export function ScanDetailPage() {
   const [scan, setScan] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -138,6 +140,27 @@ export function ScanDetailPage() {
     return () => clearInterval(timer);
   }, [pending, load]);
 
+  async function downloadReport() {
+    setPdfError(null);
+    setPdfBusy(true);
+    try {
+      const blob = await api.scanReport(token, id);
+      // Ссылку на объект обязательно освобождаем, иначе Blob висит в памяти
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `androscanner-scan-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPdfError(err.message);
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   const result = parseResult(scan?.result);
 
   return (
@@ -160,7 +183,20 @@ export function ScanDetailPage() {
               <span className="text-sm text-slate-500">
                 {new Date(scan.created_at).toLocaleString("ru-RU")}
               </span>
+              <button
+                onClick={downloadReport}
+                disabled={pdfBusy}
+                className="ml-auto rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              >
+                {pdfBusy ? "Готовлю PDF…" : "Скачать PDF"}
+              </button>
             </div>
+
+            {pdfError && (
+              <p className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {pdfError}
+              </p>
+            )}
 
             {isPending(scan.status) && (
               <p className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-center text-slate-400">

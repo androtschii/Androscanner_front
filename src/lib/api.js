@@ -59,4 +59,18 @@ export const api = {
   diffScans: (token, base, compare) =>
     request(`/analytics/diff?base=${base}&compare=${compare}`, { token }),
   networkMap: (token) => request("/analytics/network", { token }),
+
+  // ── PDF-отчёт ──
+  // Возвращает Blob, а не JSON: скачивание идёт через ссылку на объект,
+  // иначе браузер не сможет отдать файл с заголовком Authorization.
+  async scanReport(token, id) {
+    const res = await fetch(`${API_URL}/scans/${id}/report.pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError(res.status, data?.detail);
+    }
+    return res.blob();
+  },
 };
