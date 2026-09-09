@@ -291,19 +291,30 @@ function UsersSection({ token, currentUserId }) {
 
 function AuditSection({ token }) {
   const [entries, setEntries] = useState([]);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api
-      .listAudit(token)
-      .then(setEntries)
+      .listAudit(token, { limit: 50 })
+      .then((page) => {
+        setEntries(page.items);
+        setTotal(page.total);
+      })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Не удалось загрузить журнал"),
       );
   }, [token]);
 
   return (
-    <Section title="Журнал действий" hint="Кто, что и когда сделал. Записи не редактируются и не удаляются.">
+    <Section
+      title="Журнал действий"
+      hint={
+        total > entries.length
+          ? `Показаны последние ${entries.length} из ${total}. Записи не редактируются и не удаляются.`
+          : "Кто, что и когда сделал. Записи не редактируются и не удаляются."
+      }
+    >
       <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-slate-900 text-slate-400">

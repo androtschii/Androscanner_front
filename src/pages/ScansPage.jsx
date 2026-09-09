@@ -6,11 +6,27 @@ import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
 import { isPending } from "../lib/scanStatus";
 
+const PAGE_SIZE = 20;
+
+const STATUSES = [
+  { value: "", label: "любой статус" },
+  { value: "queued", label: "в очереди" },
+  { value: "running", label: "выполняется" },
+  { value: "done", label: "готово" },
+  { value: "failed", label: "ошибка" },
+];
+
 export function ScansPage() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [scans, setScans] = useState([]);
+
+  const [page, setPage] = useState({ items: [], total: 0 });
+  const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(null);
+
   const [target, setTarget] = useState("");
   const [profile, setProfile] = useState("quick");
   const [formError, setFormError] = useState(null);
@@ -20,25 +36,42 @@ export function ScansPage() {
 
   const reload = useCallback(async () => {
     try {
-      setScans(await api.listScans(token));
+      setPage(
+        await api.listScans(token, {
+          limit: PAGE_SIZE,
+          offset,
+          status: statusFilter || undefined,
+          target: search || undefined,
+        }),
+      );
+      setListError(null);
+    } catch (err) {
+      setListError(err instanceof ApiError ? err.message : "Не удалось загрузить сканы");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, offset, statusFilter, search]);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
-  // Пока хоть один скан в работе — подтягиваем статусы сами.
-  // Зависим от флага, а не от массива scans: иначе интервал пересоздавался бы
-  // на каждом обновлении списка.
-  const anyPending = scans.some((s) => isPending(s.status));
+  // Пока хоть один скан в работе — подтягиваем статусы сами
+  const anyPending = page.items.some((s) => isPending(s.status));
   useEffect(() => {
     if (!anyPending) return;
     const timer = setInterval(reload, 2000);
     return () => clearInterval(timer);
   }, [anyPending, reload]);
+
+  // Смена фильтра возвращает на первую страницу: иначе можно оказаться
+  // на пятой странице выборки, где всего две
+  function changeFilter(setter) {
+    return (value) => {
+      setOffset(0);
+      setter(value);
+    };
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -47,6 +80,7 @@ export function ScansPage() {
     try {
       await api.createScan(token, target, profile);
       setTarget("");
+      setOffset(0);
       reload();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Не удалось запустить скан");
@@ -54,6 +88,14 @@ export function ScansPage() {
       setSubmitting(false);
     }
   }
+
+  const from = page.total === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + PAGE_SIZE, page.total);
+  const hasPrev = offset > 0;
+  const hasNext = offset + PAGE_SIZE < page.total;
+
+  const controlClass =
+    "rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 outline-none focus:border-sky-500";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -63,7 +105,7 @@ export function ScansPage() {
         {canScan && (
           <form
             onSubmit={handleCreate}
-            className="mb-8 flex flex-wrap items-end gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4"
+            className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4"
           >
             <div className="min-w-[180px] flex-1">
               <label className="mb-1 block text-sm text-slate-300" htmlFor="target">
@@ -71,7 +113,7 @@ export function ScansPage() {
               </label>
               <input
                 id="target"
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 outline-none focus:border-sky-500"
+                className={`w-full ${controlClass}`}
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder="192.168.1.10"
@@ -84,7 +126,7 @@ export function ScansPage() {
               </label>
               <select
                 id="profile"
-                className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 outline-none focus:border-sky-500"
+                className={controlClass}
                 value={profile}
                 onChange={(e) => setProfile(e.target.value)}
               >
@@ -104,6 +146,34 @@ export function ScansPage() {
           </form>
         )}
 
+        {/* Фильтры отдельной строкой над таблицей, а не внутри неё */}
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <input
+            className={`${controlClass} min-w-[180px] flex-1 text-sm`}
+            value={search}
+            onChange={(e) => changeFilter(setSearch)(e.target.value)}
+            placeholder="Поиск по цели"
+            aria-label="Поиск по цели"
+          />
+          <select
+            className={`${controlClass} text-sm`}
+            value={statusFilter}
+            onChange={(e) => changeFilter(setStatusFilter)(e.target.value)}
+            aria-label="Фильтр по статусу"
+          >
+            {STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-500">
+            {page.total > 0 ? `${from}–${to} из ${page.total}` : "ничего не найдено"}
+          </span>
+        </div>
+
+        {listError && <p className="mb-3 text-sm text-red-400">{listError}</p>}
+
         <div className="overflow-hidden rounded-xl border border-slate-800">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-900 text-slate-400">
@@ -122,14 +192,16 @@ export function ScansPage() {
                   </td>
                 </tr>
               )}
-              {!loading && scans.length === 0 && (
+              {!loading && page.items.length === 0 && (
                 <tr>
                   <td className="px-4 py-6 text-center text-slate-500" colSpan={4}>
-                    Сканов пока нет
+                    {search || statusFilter
+                      ? "Под фильтр ничего не подошло"
+                      : "Сканов пока нет"}
                   </td>
                 </tr>
               )}
-              {scans.map((s) => (
+              {page.items.map((s) => (
                 <tr
                   key={s.id}
                   onClick={() => navigate(`/scans/${s.id}`)}
@@ -148,6 +220,29 @@ export function ScansPage() {
             </tbody>
           </table>
         </div>
+
+        {(hasPrev || hasNext) && (
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+              disabled={!hasPrev}
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+            >
+              ← Назад
+            </button>
+            <span className="text-sm text-slate-500">
+              страница {Math.floor(offset / PAGE_SIZE) + 1} из{" "}
+              {Math.max(1, Math.ceil(page.total / PAGE_SIZE))}
+            </span>
+            <button
+              onClick={() => setOffset(offset + PAGE_SIZE)}
+              disabled={!hasNext}
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+            >
+              Вперёд →
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );

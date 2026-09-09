@@ -40,7 +40,13 @@ export const api = {
     }),
 
   // ── сканы ──
-  listScans: (token) => request("/scans", { token }),
+  // Возвращает { items, total, limit, offset } — не голый список
+  listScans: (token, { limit = 50, offset = 0, status, target } = {}) => {
+    const q = new URLSearchParams({ limit, offset });
+    if (status) q.set("status", status);
+    if (target) q.set("target", target);
+    return request(`/scans?${q}`, { token });
+  },
   getScan: (token, id) => request(`/scans/${id}`, { token }),
   createScan: (token, target, profile) =>
     request("/scans", { method: "POST", token, body: { target, profile } }),
@@ -58,7 +64,11 @@ export const api = {
   deleteUser: (token, id) => request(`/users/${id}`, { method: "DELETE", token }),
 
   // ── журнал действий (только admin) ──
-  listAudit: (token) => request("/audit", { token }),
+  listAudit: (token, { limit = 50, offset = 0, action } = {}) => {
+    const q = new URLSearchParams({ limit, offset });
+    if (action) q.set("action", action);
+    return request(`/audit?${q}`, { token });
+  },
 
   // ── аналитика ──
   analyticsSummary: (token) => request("/analytics/summary", { token }),

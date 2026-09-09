@@ -75,11 +75,12 @@ export function DiffPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // Просим сразу только завершённые — фильтрация на сервере дешевле,
+    // чем тянуть все сканы и отсеивать в браузере
     api
-      .listScans(token)
-      .then((all) => {
-        // Сравнивать имеет смысл только успешно завершённые
-        const done = all.filter((s) => s.status === "done");
+      .listScans(token, { status: "done", limit: 200 })
+      .then((page) => {
+        const done = page.items;
         setScans(done);
         // По умолчанию — два последних: список приходит от новых к старым
         if (done.length >= 2) {
