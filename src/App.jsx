@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { AdminPage } from "./pages/AdminPage";
 import { DiffPage } from "./pages/DiffPage";
 import { NetworkPage } from "./pages/NetworkPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ScanDetailPage } from "./pages/ScanDetailPage";
 import { ScansPage } from "./pages/ScansPage";
@@ -63,6 +64,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <NetworkPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />

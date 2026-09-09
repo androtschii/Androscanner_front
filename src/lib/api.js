@@ -32,6 +32,12 @@ export const api = {
   login: (username, password) =>
     request("/auth/login", { method: "POST", form: { username, password } }),
   me: (token) => request("/users/me", { token }),
+  changePassword: (token, currentPassword, newPassword) =>
+    request("/users/me/password", {
+      method: "POST",
+      token,
+      body: { current_password: currentPassword, new_password: newPassword },
+    }),
 
   // ── сканы ──
   listScans: (token) => request("/scans", { token }),

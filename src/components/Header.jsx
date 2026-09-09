@@ -39,9 +39,15 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        <span className="text-slate-400">
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            isActive ? "text-sky-400" : "text-slate-400 hover:text-slate-100"
+          }
+          title="Профиль и смена пароля"
+        >
           {user?.username} · {ROLE_LABEL[user?.role] ?? user?.role}
-        </span>
+        </NavLink>
         <button
           onClick={logout}
           className="rounded-lg border border-slate-700 px-3 py-1.5 hover:bg-slate-800"
