@@ -5,4 +5,11 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+    // Тесты лежат рядом с кодом, который проверяют
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })

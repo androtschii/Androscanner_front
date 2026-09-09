@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminPage } from "./pages/AdminPage";
@@ -22,8 +23,9 @@ function Loading() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
         <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -86,7 +88,8 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
