@@ -62,7 +62,10 @@ export const api = {
   listUsers: (token) => request("/users", { token }),
   createUser: (token, username, password, role) =>
     request("/users", { method: "POST", token, body: { username, password, role } }),
-  deleteUser: (token, id) => request(`/users/${id}`, { method: "DELETE", token }),
+  // Не удаляет, а отключает: удаление стёрло бы авторство сканов
+  deactivateUser: (token, id) => request(`/users/${id}`, { method: "DELETE", token }),
+  activateUser: (token, id) =>
+    request(`/users/${id}/activate`, { method: "POST", token }),
 
   // ── журнал действий (только admin) ──
   listAudit: (token, { limit = 50, offset = 0, action } = {}) => {

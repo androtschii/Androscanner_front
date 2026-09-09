@@ -184,18 +184,25 @@ function UsersSection({ token, currentUserId }) {
     }
   }
 
-  async function remove(id) {
+  async function toggleActive(user) {
     setError(null);
     try {
-      await api.deleteUser(token, id);
+      if (user.is_active) {
+        await api.deactivateUser(token, user.id);
+      } else {
+        await api.activateUser(token, user.id);
+      }
       reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось удалить пользователя");
+      setError(err instanceof ApiError ? err.message : "Не удалось изменить статус пользователя");
     }
   }
 
   return (
-    <Section title="Пользователи">
+    <Section
+      title="Пользователи"
+      hint="Пользователи отключаются, а не удаляются: удаление стёрло бы авторство сканов в журнале. Отключённый теряет доступ сразу — его токен перестаёт действовать."
+    >
       <form onSubmit={add} className="mb-4 flex flex-wrap items-end gap-3">
         <div className="min-w-[140px]">
           <label className="mb-1 block text-sm text-slate-300" htmlFor="new-username">
@@ -252,6 +259,7 @@ function UsersSection({ token, currentUserId }) {
             <tr>
               <th className="px-4 py-2 font-medium">Логин</th>
               <th className="px-4 py-2 font-medium">Роль</th>
+              <th className="px-4 py-2 font-medium">Статус</th>
               <th className="px-4 py-2 font-medium">Создан</th>
               <th className="px-4 py-2" />
             </tr>
@@ -264,16 +272,27 @@ function UsersSection({ token, currentUserId }) {
                   {u.id === currentUserId && <span className="ml-2 text-xs text-slate-500">это вы</span>}
                 </td>
                 <td className="px-4 py-2">{ROLE_LABEL[u.role] ?? u.role}</td>
+                <td className="px-4 py-2">
+                  {u.is_active ? (
+                    <span className="text-emerald-400">активен</span>
+                  ) : (
+                    <span className="text-slate-500">отключён</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-slate-400">
                   {new Date(u.created_at).toLocaleString("ru-RU")}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {u.id !== currentUserId && (
                     <button
-                      onClick={() => remove(u.id)}
-                      className="text-sm text-red-400 hover:underline"
+                      onClick={() => toggleActive(u)}
+                      className={
+                        u.is_active
+                          ? "text-sm text-amber-400 hover:underline"
+                          : "text-sm text-emerald-400 hover:underline"
+                      }
                     >
-                      Удалить
+                      {u.is_active ? "Отключить" : "Включить"}
                     </button>
                   )}
                 </td>
