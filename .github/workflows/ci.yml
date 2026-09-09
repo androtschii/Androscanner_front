@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Линтер
+        run: npm run lint
+
+      - name: Тесты
+        run: npm test
+
+      # Сборка должна проходить: тесты гоняются на исходниках через Vitest
+      # и не поймают ошибку, которая проявляется только при бандлинге.
+      - name: Сборка
+        run: npm run build
