@@ -109,12 +109,14 @@ function HostCard({ host }) {
 
 export function ScanDetailPage() {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [scan, setScan] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -161,7 +163,26 @@ export function ScanDetailPage() {
     }
   }
 
+  async function cancel() {
+    setCancelError(null);
+    setCancelBusy(true);
+    try {
+      setScan(await api.cancelScan(token, id));
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelBusy(false);
+    }
+  }
+
   const result = parseResult(scan?.result);
+
+  // Отменить может админ или тот, кто запустил. Кнопку прячем от
+  // остальных, но настоящая проверка — на бэкенде.
+  const canCancel =
+    scan &&
+    isPending(scan.status) &&
+    (user?.role === "admin" || scan.created_by === user?.id);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -183,18 +204,41 @@ export function ScanDetailPage() {
               <span className="text-sm text-slate-500">
                 {new Date(scan.created_at).toLocaleString("ru-RU")}
               </span>
-              <button
-                onClick={downloadReport}
-                disabled={pdfBusy}
-                className="ml-auto rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-              >
-                {pdfBusy ? "Готовлю PDF…" : "Скачать PDF"}
-              </button>
+              <div className="ml-auto flex gap-2">
+                {canCancel && (
+                  <button
+                    onClick={cancel}
+                    disabled={cancelBusy}
+                    className="rounded-lg border border-amber-800 px-3 py-1.5 text-sm text-amber-300 hover:bg-amber-950/40 disabled:opacity-50"
+                  >
+                    {cancelBusy ? "Отменяю…" : "Отменить скан"}
+                  </button>
+                )}
+                <button
+                  onClick={downloadReport}
+                  disabled={pdfBusy}
+                  className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {pdfBusy ? "Готовлю PDF…" : "Скачать PDF"}
+                </button>
+              </div>
             </div>
+
+            {cancelError && (
+              <p className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {cancelError}
+              </p>
+            )}
 
             {pdfError && (
               <p className="mb-4 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
                 {pdfError}
+              </p>
+            )}
+
+            {scan.status === "cancelled" && !result && (
+              <p className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-center text-slate-400">
+                Скан отменён до того, как успел что-то найти
               </p>
             )}
 

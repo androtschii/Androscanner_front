@@ -50,6 +50,7 @@ export const api = {
   getScan: (token, id) => request(`/scans/${id}`, { token }),
   createScan: (token, target, profile) =>
     request("/scans", { method: "POST", token, body: { target, profile } }),
+  cancelScan: (token, id) => request(`/scans/${id}/cancel`, { method: "POST", token }),
 
   // ── allowed scope (запись — только admin) ──
   listScopes: (token) => request("/scopes", { token }),

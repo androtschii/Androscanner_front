@@ -3,6 +3,7 @@ const STATUS = {
   running: { label: "выполняется", className: "bg-sky-900 text-sky-200" },
   done: { label: "готово", className: "bg-emerald-900 text-emerald-200" },
   failed: { label: "ошибка", className: "bg-red-900 text-red-200" },
+  cancelled: { label: "отменён", className: "bg-slate-700 text-slate-300" },
 };
 
 export function StatusBadge({ status }) {

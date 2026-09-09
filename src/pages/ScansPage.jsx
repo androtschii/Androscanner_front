@@ -14,6 +14,7 @@ const STATUSES = [
   { value: "running", label: "выполняется" },
   { value: "done", label: "готово" },
   { value: "failed", label: "ошибка" },
+  { value: "cancelled", label: "отменён" },
 ];
 
 export function ScansPage() {
