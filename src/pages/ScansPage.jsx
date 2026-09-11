@@ -126,7 +126,9 @@ export function ScansPage() {
   }
 
   const from = page.total === 0 ? 0 : offset + 1;
-  const to = Math.min(offset + PAGE_SIZE, page.total);
+  // По числу реально пришедших строк, а не по размеру страницы:
+  // на последней странице их меньше, и «1–20 из 137» было бы неправдой
+  const to = offset + page.items.length;
   const hasPrev = offset > 0;
   const hasNext = offset + PAGE_SIZE < page.total;
 
