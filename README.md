@@ -116,7 +116,7 @@ src/
 | `npm run build` | прод-сборка в `dist/` |
 | `npm run preview` | локальный просмотр прод-сборки |
 | `npm run lint` | oxlint |
-| `npm test` | Vitest, 104 теста |
+| `npm test` | Vitest, 137 тестов |
 | `npm run test:watch` | тесты в watch-режиме |
 
 ## Тесты
@@ -137,6 +137,8 @@ npm test
 | `CommandPalette.test.jsx` | открытие, нечёткий поиск, роли |
 | `ScansPage.test.jsx` | пагинация, фильтры, права, автообновление |
 | `AdminPage.test.jsx` | подтверждения опасных действий, журнал |
+| `ScanDetailPage.test.jsx` | сортировка портов, сворачивание хостов, отмена, PDF |
+| `DiffPage.test.jsx` | сравнение, предупреждение о разных целях |
 
 Отдельный тест следит, что токен **не** попадает в `localStorage` и
 `sessionStorage` — это осознанное решение, и регрессия здесь была бы
