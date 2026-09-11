@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
@@ -37,7 +38,10 @@ export default function App() {
       />
       <AuthProvider>
         <BrowserRouter>
-        <Suspense fallback={<Loading />}>
+          {/* Внутри роутера: палитре нужен navigate, а контекст
+              авторизации — чтобы прятать админские команды */}
+          <CommandPalette />
+          <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route

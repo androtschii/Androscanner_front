@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { Download, Table2, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { NetworkGraph } from "../components/NetworkGraph";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
+import { downloadCsv } from "../lib/csv";
 
 function HostDetails({ host }) {
   if (!host) {
@@ -86,6 +89,28 @@ export function NetworkPage() {
     ? [...map.networks.flatMap((n) => n.hosts), ...map.ungrouped]
     : [];
 
+  function exportCsv() {
+    downloadCsv(
+      `androscanner-hosts-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { key: "ip", label: "IP" },
+        { key: "hostnames", label: "Имена", get: (h) => h.hostnames.join("; ") },
+        { key: "mac", label: "MAC", get: (h) => h.mac ?? "" },
+        { key: "vendor", label: "Производитель", get: (h) => h.vendor ?? "" },
+        { key: "os", label: "ОС", get: (h) => h.os ?? "" },
+        { key: "open_ports", label: "Открытых портов" },
+        { key: "services", label: "Сервисы", get: (h) => h.services.join("; ") },
+        {
+          key: "last_seen",
+          label: "Последний раз виден",
+          get: (h) => (h.last_seen ? new Date(h.last_seen).toLocaleString("ru-RU") : ""),
+        },
+      ],
+      allHosts,
+    );
+    toast.success(`Выгружено хостов: ${allHosts.length}`);
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <Header />
@@ -98,12 +123,23 @@ export function NetworkPage() {
             </p>
           </div>
           {allHosts.length > 0 && (
-            <button
-              onClick={() => setAsTable((v) => !v)}
-              className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
-            >
-              {asTable ? "Карта" : "Таблица"}
-            </button>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => setAsTable((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
+              >
+                {asTable ? <Share2 size={14} /> : <Table2 size={14} />}
+                {asTable ? "Карта" : "Таблица"}
+              </button>
+              <button
+                onClick={exportCsv}
+                title="Выгрузить все найденные хосты в CSV"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
+              >
+                <Download size={14} aria-hidden="true" />
+                CSV
+              </button>
+            </div>
           )}
         </div>
 

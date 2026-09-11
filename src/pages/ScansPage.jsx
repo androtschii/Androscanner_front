@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Radar, Search } from "lucide-react";
+import { useRef } from "react";
+import { ChevronLeft, ChevronRight, Download, Radar, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
+import { downloadCsv } from "../lib/csv";
 import { isPending } from "../lib/scanStatus";
+import { MOD_LABEL, useHotkey } from "../lib/useHotkey";
 
 const PAGE_SIZE = 20;
 
@@ -36,6 +39,12 @@ export function ScansPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const canScan = user?.role === "admin" || user?.role === "analyst";
+  const searchRef = useRef(null);
+
+  // «/» ставит курсор в поиск — привычка из почты и GitHub
+  useHotkey("/", () => searchRef.current?.focus());
+  // Escape очищает поиск, не убирая фокус
+  useHotkey("escape", () => { setSearch(""); setOffset(0); }, { allowInInput: true });
 
   const reload = useCallback(async () => {
     try {
@@ -95,6 +104,25 @@ export function ScansPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function exportCsv() {
+    downloadCsv(
+      `androscanner-scans-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { key: "id", label: "ID" },
+        { key: "target", label: "Цель" },
+        { key: "profile", label: "Профиль" },
+        { key: "status", label: "Статус" },
+        {
+          key: "created_at",
+          label: "Создан",
+          get: (s) => new Date(s.created_at).toLocaleString("ru-RU"),
+        },
+      ],
+      page.items,
+    );
+    toast.success(`Выгружено строк: ${page.items.length}`);
   }
 
   const from = page.total === 0 ? 0 : offset + 1;
@@ -164,12 +192,16 @@ export function ScansPage() {
               aria-hidden="true"
             />
             <input
-              className={`${controlClass} w-full pl-9 text-sm`}
+              ref={searchRef}
+              className={`${controlClass} w-full pl-9 pr-9 text-sm`}
               value={search}
               onChange={(e) => changeFilter(setSearch)(e.target.value)}
               placeholder="Поиск по цели"
               aria-label="Поиск по цели"
             />
+            <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-700 px-1 text-[10px] text-slate-500">
+              /
+            </kbd>
           </div>
           <select
             className={`${controlClass} text-sm`}
@@ -186,6 +218,15 @@ export function ScansPage() {
           <span className="text-sm text-slate-500">
             {page.total > 0 ? `${from}–${to} из ${page.total}` : "ничего не найдено"}
           </span>
+          <button
+            onClick={exportCsv}
+            disabled={page.items.length === 0}
+            title="Выгрузить текущую страницу в CSV"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          >
+            <Download size={14} aria-hidden="true" />
+            CSV
+          </button>
         </div>
 
         {listError && <p className="mb-3 text-sm text-red-400">{listError}</p>}
@@ -261,6 +302,10 @@ export function ScansPage() {
             </button>
           </div>
         )}
+        <p className="mt-6 text-center text-xs text-slate-600">
+          <kbd className="rounded border border-slate-700 px-1">/</kbd> поиск ·{" "}
+          <kbd className="rounded border border-slate-700 px-1">{MOD_LABEL}+K</kbd> команды
+        </p>
       </main>
     </div>
   );
