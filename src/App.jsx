@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { Toaster } from "sonner";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -24,6 +25,16 @@ function Loading() {
 export default function App() {
   return (
     <ErrorBoundary>
+      {/* Уведомления об итогах действий: раньше успешное отключение
+          пользователя или добавление диапазона проходили молча, и понять,
+          сработало ли, можно было только по изменившейся таблице */}
+      <Toaster
+        theme="dark"
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{ className: "text-sm" }}
+      />
       <AuthProvider>
         <BrowserRouter>
         <Suspense fallback={<Loading />}>

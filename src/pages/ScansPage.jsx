@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Radar, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -79,12 +81,17 @@ export function ScansPage() {
     setFormError(null);
     setSubmitting(true);
     try {
-      await api.createScan(token, target, profile);
+      const created = await api.createScan(token, target, profile);
+      toast.success(`Скан ${created.target} поставлен в очередь`, {
+        description: `Профиль ${created.profile}. Статус обновится сам.`,
+      });
       setTarget("");
       setOffset(0);
       reload();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Не удалось запустить скан");
+      const message = err instanceof ApiError ? err.message : "Не удалось запустить скан";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -139,8 +146,9 @@ export function ScansPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-50"
             >
+              <Radar size={16} aria-hidden="true" />
               {submitting ? "Запускаю…" : "Запустить скан"}
             </button>
             {formError && <p className="w-full text-sm text-red-400">{formError}</p>}
@@ -149,13 +157,20 @@ export function ScansPage() {
 
         {/* Фильтры отдельной строкой над таблицей, а не внутри неё */}
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <input
-            className={`${controlClass} min-w-[180px] flex-1 text-sm`}
-            value={search}
-            onChange={(e) => changeFilter(setSearch)(e.target.value)}
-            placeholder="Поиск по цели"
-            aria-label="Поиск по цели"
-          />
+          <div className="relative min-w-[180px] flex-1">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              aria-hidden="true"
+            />
+            <input
+              className={`${controlClass} w-full pl-9 text-sm`}
+              value={search}
+              onChange={(e) => changeFilter(setSearch)(e.target.value)}
+              placeholder="Поиск по цели"
+              aria-label="Поиск по цели"
+            />
+          </div>
           <select
             className={`${controlClass} text-sm`}
             value={statusFilter}
@@ -227,9 +242,10 @@ export function ScansPage() {
             <button
               onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               disabled={!hasPrev}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
             >
-              ← Назад
+              <ChevronLeft size={15} aria-hidden="true" />
+              Назад
             </button>
             <span className="text-sm text-slate-500">
               страница {Math.floor(offset / PAGE_SIZE) + 1} из{" "}
@@ -238,9 +254,10 @@ export function ScansPage() {
             <button
               onClick={() => setOffset(offset + PAGE_SIZE)}
               disabled={!hasNext}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
             >
-              Вперёд →
+              Вперёд
+              <ChevronRight size={15} aria-hidden="true" />
             </button>
           </div>
         )}

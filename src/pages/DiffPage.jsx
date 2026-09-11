@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { AlertTriangle, GitCompare } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
@@ -101,7 +103,9 @@ export function DiffPage() {
     try {
       setDiff(await api.diffScans(token, base, compare));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось сравнить");
+      const message = err instanceof ApiError ? err.message : "Не удалось сравнить";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -171,8 +175,9 @@ export function DiffPage() {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-50"
             >
+              <GitCompare size={16} aria-hidden="true" />
               {busy ? "Сравниваю…" : "Сравнить"}
             </button>
           </form>
@@ -182,6 +187,23 @@ export function DiffPage() {
 
         {diff && (
           <>
+            {/* Сравнивать сканы разных сетей формально можно, но тогда
+                «хост исчез / появился» означает лишь то, что сети разные */}
+            {diff.targets_differ && (
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-800 bg-amber-950/30 px-4 py-3">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-200">Сканы по разным целям</p>
+                  <p className="text-amber-100/80">
+                    <span className="font-mono">{diff.base.target}</span> против{" "}
+                    <span className="font-mono">{diff.compare.target}</span>. Все хосты первой
+                    сети окажутся «исчезнувшими», второй — «появившимися». Это не изменения
+                    в сети, а следствие разных целей.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="новых хостов" value={diff.summary.hosts_added} />
               <Stat label="исчезло хостов" value={diff.summary.hosts_removed} />

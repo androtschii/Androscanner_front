@@ -1,10 +1,19 @@
 import { Link, NavLink } from "react-router-dom";
+import {
+  GitCompare,
+  LayoutDashboard,
+  LogOut,
+  Network,
+  Radar,
+  Settings,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_LABEL = { admin: "Администратор", analyst: "Аналитик", viewer: "Наблюдатель" };
 
 function navClass({ isActive }) {
-  return isActive ? "text-sky-400" : "text-slate-400 hover:text-slate-100";
+  const base = "inline-flex items-center gap-1.5";
+  return isActive ? `${base} text-sky-400` : `${base} text-slate-400 hover:text-slate-100`;
 }
 
 export function Header() {
@@ -18,20 +27,25 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-4 text-sm">
           <NavLink to="/dashboard" className={navClass}>
+            <LayoutDashboard size={15} aria-hidden="true" />
             Дашборд
           </NavLink>
           <NavLink to="/scans" className={navClass} end>
+            <Radar size={15} aria-hidden="true" />
             Сканы
           </NavLink>
           <NavLink to="/network" className={navClass}>
+            <Network size={15} aria-hidden="true" />
             Карта
           </NavLink>
           <NavLink to="/diff" className={navClass}>
+            <GitCompare size={15} aria-hidden="true" />
             Сравнение
           </NavLink>
           {/* Ссылка только админу — маршрут всё равно закрыт и на бэкенде */}
           {user?.role === "admin" && (
             <NavLink to="/admin" className={navClass}>
+              <Settings size={15} aria-hidden="true" />
               Администрирование
             </NavLink>
           )}
@@ -50,8 +64,9 @@ export function Header() {
         </NavLink>
         <button
           onClick={logout}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 hover:bg-slate-800"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 hover:bg-slate-800"
         >
+          <LogOut size={14} aria-hidden="true" />
           Выйти
         </button>
       </div>
