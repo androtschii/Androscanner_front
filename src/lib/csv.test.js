@@ -12,7 +12,7 @@ function body(rows) {
 
 describe("формат", () => {
   it("первой строкой идут заголовки", () => {
-    expect(toCsv(cols, []).split("\r\n")[0]).toBe("IP,Имя");
+    expect(toCsv(cols, []).split("\r\n")[0]).toBe("IP;Имя");
   });
 
   it("строки разделяются CRLF, как требует RFC 4180", () => {
@@ -21,31 +21,35 @@ describe("формат", () => {
   });
 
   it("берёт значение через get, если он задан", () => {
-    const csv = toCsv([{ key: "ports", label: "Порты", get: (r) => r.ports.join("; ") }], [
+    const csv = toCsv([{ key: "ports", label: "Порты", get: (r) => r.ports.join(", ") }], [
       { ports: [22, 80] },
     ]);
-    expect(csv).toContain("22; 80");
+    expect(csv).toContain("22, 80");
   });
 
   it("пустые значения не ломают строку", () => {
-    expect(body([{ ip: "10.0.0.1", name: null }])[0]).toBe("10.0.0.1,");
+    expect(body([{ ip: "10.0.0.1", name: null }])[0]).toBe("10.0.0.1;");
   });
 });
 
 describe("экранирование", () => {
-  it("значение с запятой берётся в кавычки", () => {
-    expect(body([{ ip: "10.0.0.1", name: "ssh, http" }])[0]).toBe('10.0.0.1,"ssh, http"');
+  it("значение с разделителем берётся в кавычки", () => {
+    expect(body([{ ip: "10.0.0.1", name: "ssh; http" }])[0]).toBe('10.0.0.1;"ssh; http"');
   });
 
   it("кавычки внутри значения удваиваются", () => {
     expect(body([{ ip: "10.0.0.1", name: 'сказал "привет"' }])[0]).toBe(
-      '10.0.0.1,"сказал ""привет"""',
+      '10.0.0.1;"сказал ""привет"""',
     );
   });
 
   it("перевод строки внутри значения не разрывает запись", () => {
     const line = body([{ ip: "10.0.0.1", name: "первая\nвторая" }]);
     expect(line[0]).toContain('"первая\nвторая"');
+  });
+
+  it("запятая внутри значения не требует экранирования — разделитель теперь ;", () => {
+    expect(body([{ ip: "10.0.0.1", name: "ssh, http" }])[0]).toBe("10.0.0.1;ssh, http");
   });
 });
 
@@ -61,7 +65,7 @@ describe("защита от CSV-инъекции", () => {
     ["@SUM(A1)", "формула через @"],
     ["\tтабуляция", "табуляция"],
   ])("обезвреживает %s (%s)", (hostile) => {
-    const cell = body([{ ip: "10.0.0.1", name: hostile }])[0].split(",").slice(1).join(",");
+    const cell = body([{ ip: "10.0.0.1", name: hostile }])[0].split(";").slice(1).join(";");
     expect(cell.startsWith("'") || cell.startsWith('"\'')).toBe(true);
   });
 
@@ -71,10 +75,10 @@ describe("защита от CSV-инъекции", () => {
   });
 
   it("обычные значения не трогает", () => {
-    expect(body([{ ip: "10.0.0.1", name: "nas.local" }])[0]).toBe("10.0.0.1,nas.local");
+    expect(body([{ ip: "10.0.0.1", name: "nas.local" }])[0]).toBe("10.0.0.1;nas.local");
   });
 
   it("минус внутри значения безопасен и не экранируется", () => {
-    expect(body([{ ip: "10.0.0.1", name: "web-server-01" }])[0]).toBe("10.0.0.1,web-server-01");
+    expect(body([{ ip: "10.0.0.1", name: "web-server-01" }])[0]).toBe("10.0.0.1;web-server-01");
   });
 });

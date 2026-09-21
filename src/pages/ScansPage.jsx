@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, Download, Radar, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Radar,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
@@ -21,6 +29,7 @@ import { MOD_LABEL, useHotkey } from "../lib/useHotkey";
 function ScanRow({ scan, onClick }) {
   const pending = isPending(scan.status);
   const elapsed = useElapsed(scan.created_at, pending);
+  const finishedDuration = !pending ? scanDurationSeconds(scan) : null;
 
   return (
     <tr
@@ -40,7 +49,63 @@ function ScanRow({ scan, onClick }) {
       <td className="px-4 py-2 text-slate-400">
         {new Date(scan.created_at).toLocaleString("ru-RU")}
       </td>
+      <td className="px-4 py-2 font-mono text-slate-400">
+        {finishedDuration === null ? "—" : formatElapsed(finishedDuration)}
+      </td>
     </tr>
+  );
+}
+
+const SORT_COLUMNS = [
+  { key: "target", label: "Цель" },
+  { key: "profile", label: "Профиль" },
+  { key: "status", label: "Статус" },
+  { key: "created_at", label: "Создан" },
+  { key: "duration", label: "Длительность" },
+];
+
+function sortValue(scan, key) {
+  if (key === "duration") return scanDurationSeconds(scan) ?? -1;
+  if (key === "created_at") return new Date(scan.created_at).getTime();
+  return String(scan[key] ?? "").toLowerCase();
+}
+
+/**
+ * Сортировка — только внутри уже загруженной страницы (20 строк): сервер
+ * всегда отдаёт их по created_at desc, а тянуть с бэкенда сортировку
+ * по произвольной колонке ради 20 строк на экране избыточно.
+ */
+function sortItems(items, sortKey, sortDir) {
+  if (!sortKey) return items;
+  const sorted = [...items].sort((a, b) => {
+    const av = sortValue(a, sortKey);
+    const bv = sortValue(b, sortKey);
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+    return 0;
+  });
+  return sortDir === "desc" ? sorted.reverse() : sorted;
+}
+
+function SortableHeader({ column, sortKey, sortDir, onSort }) {
+  const active = sortKey === column.key;
+  return (
+    <th className="px-4 py-2 font-medium">
+      <button
+        type="button"
+        onClick={() => onSort(column.key)}
+        className="inline-flex items-center gap-1 hover:text-slate-200"
+        aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        {column.label}
+        {active &&
+          (sortDir === "asc" ? (
+            <ArrowUp size={12} aria-hidden="true" />
+          ) : (
+            <ArrowDown size={12} aria-hidden="true" />
+          ))}
+      </button>
+    </th>
   );
 }
 
@@ -70,6 +135,23 @@ export function ScansPage() {
   const [profile, setProfile] = useState("quick");
   const [formError, setFormError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const sortedItems = useMemo(
+    () => sortItems(page.items, sortKey, sortDir),
+    [page.items, sortKey, sortDir],
+  );
 
   const canScan = user?.role === "admin" || user?.role === "analyst";
   const searchRef = useRef(null);
@@ -161,7 +243,7 @@ export function ScansPage() {
           },
         },
       ],
-      page.items,
+      sortedItems,
     );
     toast.success(`Выгружено строк: ${page.items.length}`);
   }
@@ -288,30 +370,35 @@ export function ScansPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-900 text-slate-400">
               <tr>
-                <th className="px-4 py-2 font-medium">Цель</th>
-                <th className="px-4 py-2 font-medium">Профиль</th>
-                <th className="px-4 py-2 font-medium">Статус</th>
-                <th className="px-4 py-2 font-medium">Создан</th>
+                {SORT_COLUMNS.map((c) => (
+                  <SortableHeader
+                    key={c.key}
+                    column={c}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={handleSort}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={4}>
+                  <td className="px-4 py-6 text-center text-slate-500" colSpan={5}>
                     Загрузка…
                   </td>
                 </tr>
               )}
               {!loading && page.items.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={4}>
+                  <td className="px-4 py-6 text-center text-slate-500" colSpan={5}>
                     {search || statusFilter
                       ? "Под фильтр ничего не подошло"
                       : "Сканов пока нет"}
                   </td>
                 </tr>
               )}
-              {page.items.map((s) => (
+              {sortedItems.map((s) => (
                 <ScanRow key={s.id} scan={s} onClick={() => navigate(`/scans/${s.id}`)} />
               ))}
             </tbody>
