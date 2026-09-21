@@ -4,7 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AdminPage } from "./pages/AdminPage";
 import { DiffPage } from "./pages/DiffPage";
 import { NetworkPage } from "./pages/NetworkPage";
@@ -21,6 +21,17 @@ const DashboardPage = lazy(() =>
 
 function Loading() {
   return <div className="min-h-screen bg-slate-950 p-8 text-slate-500">Загрузка…</div>;
+}
+
+/**
+ * Не рендерит роуты, пока AuthProvider не проверил сохранённый в
+ * sessionStorage токен — иначе ProtectedRoute успел бы на миг увидеть
+ * token=null и увести на /login ещё до того, как токен восстановится.
+ */
+function AuthGate({ children }) {
+  const { restoring } = useAuth();
+  if (restoring) return <Loading />;
+  return children;
 }
 
 export default function App() {
@@ -40,6 +51,7 @@ export default function App() {
         <BrowserRouter>
           {/* Внутри роутера: палитре нужен navigate, а контекст
               авторизации — чтобы прятать админские команды */}
+          <AuthGate>
           <CommandPalette />
           <Suspense fallback={<Loading />}>
           <Routes>
@@ -103,6 +115,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
+          </AuthGate>
         </BrowserRouter>
       </AuthProvider>
     </ErrorBoundary>

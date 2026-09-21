@@ -49,6 +49,7 @@ function renderProbe() {
 
 afterEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
 });
 
 describe("начальное состояние", () => {
@@ -115,7 +116,7 @@ describe("выход", () => {
 });
 
 describe("хранение токена", () => {
-  it("токен не попадает в localStorage и sessionStorage", async () => {
+  it("токен попадает в sessionStorage, но не в localStorage", async () => {
     api.login.mockResolvedValue({ access_token: "sekretnyy-token" });
     api.me.mockResolvedValue({ username: "admin", role: "admin" });
 
@@ -126,9 +127,52 @@ describe("хранение токена", () => {
       expect(screen.getByTestId("token")).toHaveTextContent("sekretnyy-token"),
     );
 
-    // Осознанное решение: токен живёт только в памяти, чтобы его
-    // нельзя было украсть из хранилища браузера через XSS
+    // sessionStorage, а не localStorage: переживает обновление страницы
+    // (F5), но пропадает при закрытии вкладки — не остаётся на диске
+    // неограниченно долго, как было бы с localStorage.
     expect(JSON.stringify(localStorage)).not.toContain("sekretnyy-token");
+    expect(JSON.stringify(sessionStorage)).toContain("sekretnyy-token");
+  });
+
+  it("выход стирает токен из sessionStorage", async () => {
+    api.login.mockResolvedValue({ access_token: "sekretnyy-token" });
+    api.me.mockResolvedValue({ username: "admin", role: "admin" });
+
+    const user = userEvent.setup();
+    renderProbe();
+    await user.click(screen.getByText("войти"));
+    await waitFor(() =>
+      expect(screen.getByTestId("token")).toHaveTextContent("sekretnyy-token"),
+    );
+
+    await user.click(screen.getByText("выйти"));
     expect(JSON.stringify(sessionStorage)).not.toContain("sekretnyy-token");
+  });
+});
+
+describe("восстановление сессии", () => {
+  it("при наличии валидного токена в sessionStorage восстанавливает пользователя", async () => {
+    sessionStorage.setItem("androscanner_token", "saved-token");
+    api.me.mockResolvedValue({ username: "admin", role: "admin" });
+
+    renderProbe();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("token")).toHaveTextContent("saved-token");
+      expect(screen.getByTestId("role")).toHaveTextContent("admin");
+    });
+    expect(api.me).toHaveBeenCalledWith("saved-token");
+  });
+
+  it("недействительный сохранённый токен тихо очищается", async () => {
+    sessionStorage.setItem("androscanner_token", "expired-token");
+    api.me.mockRejectedValue(new Error("Unauthorized"));
+
+    renderProbe();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("token")).toHaveTextContent("нет");
+    });
+    expect(JSON.stringify(sessionStorage)).not.toContain("expired-token");
   });
 });
