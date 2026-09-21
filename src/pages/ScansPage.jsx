@@ -9,7 +9,40 @@ import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
 import { downloadCsv } from "../lib/csv";
 import { isPending } from "../lib/scanStatus";
+import { formatElapsed, scanDurationSeconds, useElapsed } from "../lib/useElapsed";
 import { MOD_LABEL, useHotkey } from "../lib/useHotkey";
+
+/**
+ * Строка таблицы вынесена в отдельный компонент, а не инлайн в .map():
+ * useElapsed вызывается для каждой строки, и делать это напрямую внутри
+ * callback у .map() нарушало бы правило хуков — число вызовов зависело
+ * бы от длины списка.
+ */
+function ScanRow({ scan, onClick }) {
+  const pending = isPending(scan.status);
+  const elapsed = useElapsed(scan.created_at, pending);
+
+  return (
+    <tr
+      onClick={onClick}
+      className="cursor-pointer border-t border-slate-800 hover:bg-slate-900"
+    >
+      <td className="px-4 py-2 font-mono">{scan.target}</td>
+      <td className="px-4 py-2">{scan.profile}</td>
+      <td className="px-4 py-2">
+        <div className="flex items-center gap-2">
+          <StatusBadge status={scan.status} />
+          {pending && (
+            <span className="font-mono text-xs text-slate-500">{formatElapsed(elapsed)}</span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-2 text-slate-400">
+        {new Date(scan.created_at).toLocaleString("ru-RU")}
+      </td>
+    </tr>
+  );
+}
 
 const PAGE_SIZE = 20;
 
@@ -119,6 +152,14 @@ export function ScansPage() {
           label: "Создан",
           get: (s) => new Date(s.created_at).toLocaleString("ru-RU"),
         },
+        {
+          key: "duration",
+          label: "Длительность",
+          get: (s) => {
+            const sec = scanDurationSeconds(s);
+            return sec === null ? "—" : formatElapsed(sec);
+          },
+        },
       ],
       page.items,
     );
@@ -168,9 +209,19 @@ export function ScansPage() {
                 value={profile}
                 onChange={(e) => setProfile(e.target.value)}
               >
-                <option value="discovery">discovery — ARP, нужны права админа</option>
-                <option value="quick">quick — 100 портов, без прав</option>
-                <option value="full">full — все порты + ОС, нужны права админа</option>
+                <optgroup label="Без прав администратора">
+                  <option value="ping">ping — только живые хосты, без портов</option>
+                  <option value="quick">quick — 100 портов</option>
+                  <option value="top1000">top1000 — 1000 портов</option>
+                  <option value="version">version — версии сервисов</option>
+                  <option value="vuln">vuln — известные уязвимости (медленно)</option>
+                </optgroup>
+                <optgroup label="Нужны права администратора">
+                  <option value="discovery">discovery — ARP по своему сегменту</option>
+                  <option value="udp">udp — DNS/SNMP/DHCP и другие UDP-порты</option>
+                  <option value="full">full — все 65535 портов + ОС</option>
+                  <option value="aggressive">aggressive — версии + ОС + скрипты разом</option>
+                </optgroup>
               </select>
             </div>
             <button
@@ -261,20 +312,7 @@ export function ScansPage() {
                 </tr>
               )}
               {page.items.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => navigate(`/scans/${s.id}`)}
-                  className="cursor-pointer border-t border-slate-800 hover:bg-slate-900"
-                >
-                  <td className="px-4 py-2 font-mono">{s.target}</td>
-                  <td className="px-4 py-2">{s.profile}</td>
-                  <td className="px-4 py-2">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="px-4 py-2 text-slate-400">
-                    {new Date(s.created_at).toLocaleString("ru-RU")}
-                  </td>
-                </tr>
+                <ScanRow key={s.id} scan={s} onClick={() => navigate(`/scans/${s.id}`)} />
               ))}
             </tbody>
           </table>

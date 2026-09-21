@@ -18,6 +18,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { isPending } from "../lib/scanStatus";
+import { formatElapsed, scanDurationSeconds, useElapsed } from "../lib/useElapsed";
 import { useConfirm } from "../lib/useConfirm";
 
 /** Бэкенд хранит результат JSON-строкой в поле result. */
@@ -238,6 +239,9 @@ export function ScanDetailPage() {
     return () => clearInterval(timer);
   }, [pending, load]);
 
+  const elapsedSeconds = useElapsed(scan?.created_at, pending);
+  const finishedDuration = scan ? scanDurationSeconds(scan) : null;
+
   async function downloadReport() {
     setPdfBusy(true);
     const toastId = toast.loading("Готовлю PDF…");
@@ -315,6 +319,11 @@ export function ScanDetailPage() {
               <h1 className="font-mono text-2xl font-semibold">{scan.target}</h1>
               <StatusBadge status={scan.status} />
               <span className="text-sm text-slate-400">профиль {scan.profile}</span>
+              {finishedDuration !== null && (
+                <span className="font-mono text-sm text-slate-400" title="сколько скан реально шёл">
+                  {formatElapsed(finishedDuration)}
+                </span>
+              )}
               <span className="text-sm text-slate-500">
                 {new Date(scan.created_at).toLocaleString("ru-RU")}
               </span>
@@ -352,10 +361,21 @@ export function ScanDetailPage() {
             )}
 
             {isPending(scan.status) && (
-              <p className="flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-slate-400">
-                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                Скан выполняется, страница обновится сама…
-              </p>
+              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                  {scan.status === "queued" ? "В очереди…" : "Скан выполняется…"}
+                </div>
+                {/* Живой секундомер — без него не видно, движется ли
+                    процесс вообще: тяжёлые профили (vuln, full) идут
+                    минутами, и статичная надпись читалась бы как зависание */}
+                <span className="font-mono text-2xl text-slate-200">
+                  {formatElapsed(elapsedSeconds)}
+                </span>
+                <span className="text-xs text-slate-500">
+                  профиль «{scan.profile}» — страница обновится сама
+                </span>
+              </div>
             )}
 
             {result?.error && (
