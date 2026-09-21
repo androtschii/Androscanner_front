@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowUpDown,
   ChevronDown,
@@ -17,6 +18,7 @@ import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { assessPortRisk } from "../lib/portRisk";
 import { isPending } from "../lib/scanStatus";
 import { formatElapsed, scanDurationSeconds, useElapsed } from "../lib/useElapsed";
 import { useConfirm } from "../lib/useConfirm";
@@ -71,6 +73,31 @@ function SortHeader({ column, sortBy, onSort, children }) {
         <ArrowUpDown size={12} aria-hidden="true" />
       </button>
     </th>
+  );
+}
+
+/**
+ * Только для открытых портов — закрытый порт неэксплуатируем, бейдж
+ * риска на нём был бы ложной тревогой.
+ */
+function RiskBadge({ port, service, state }) {
+  if (state !== "open") return null;
+  const risk = assessPortRisk(port, service);
+  if (!risk) return null;
+
+  const cls =
+    risk.level === "high"
+      ? "border-red-800 bg-red-950/40 text-red-300"
+      : "border-amber-800 bg-amber-950/40 text-amber-300";
+
+  return (
+    <span
+      title={risk.reason}
+      className={`ml-2 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
+    >
+      <AlertTriangle size={10} aria-hidden="true" />
+      {risk.level === "high" ? "высокий риск" : "стоит проверить"}
+    </span>
   );
 }
 
@@ -133,7 +160,10 @@ function PortsTable({ ports }) {
                     {p.state}
                   </span>
                 </td>
-                <td className="px-4 py-2">{p.service || "—"}</td>
+                <td className="px-4 py-2">
+                  {p.service || "—"}
+                  <RiskBadge port={p.port} service={p.service} state={p.state} />
+                </td>
                 <td className="px-4 py-2 text-slate-400">
                   {[p.product, p.version].filter(Boolean).join(" ") || "—"}
                 </td>
