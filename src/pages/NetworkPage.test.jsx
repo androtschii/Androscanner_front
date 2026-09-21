@@ -82,12 +82,12 @@ describe("отображение", () => {
     expect(within(svg).getByText("192.168.1.10")).toBeInTheDocument();
   });
 
-  it("честно говорит, что луч — это вхождение в диапазон, а не связь", async () => {
+  it("честно говорит, что линия — это вхождение в диапазон, а не подтверждённая связь", async () => {
     // Профили сканирования не выясняют топологию: ни traceroute,
     // ни опроса маршрутов. Карта не должна читаться как схема соединений.
     setup();
     expect(
-      await screen.findByText(/не связь между устройствами/),
+      await screen.findByText(/не подтверждённая физическая связь/),
     ).toBeInTheDocument();
   });
 
@@ -135,7 +135,7 @@ describe("выбор узла", () => {
     setup();
     await screen.findByRole("img", { name: /Карта подсети/ });
 
-    await user.click(screen.getByRole("button", { name: /192.168.1.10, открытых портов/ }));
+    await user.click(screen.getByRole("button", { name: /192.168.1.10, .*, открытых портов/ }));
 
     expect(await screen.findByText("Synology")).toBeInTheDocument();
     expect(screen.getByText("Linux 5.X")).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe("выбор узла", () => {
     setup();
     await screen.findByRole("img", { name: /Карта подсети/ });
 
-    const node = screen.getByRole("button", { name: /192.168.1.10, открытых портов/ });
+    const node = screen.getByRole("button", { name: /192.168.1.10, .*, открытых портов/ });
     node.focus();
     await user.keyboard("{Enter}");
 

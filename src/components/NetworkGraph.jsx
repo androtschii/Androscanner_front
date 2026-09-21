@@ -1,23 +1,60 @@
 /**
- * Радиальная карта подсети, нарисованная инлайновым SVG.
+ * Карта подсети в духе Cisco Packet Tracer: коммутатор сверху, устройства
+ * рядом внизу, прямые «кабели» между ними — нарисовано инлайновым SVG.
  *
  * Без библиотеки намеренно: Recharts уже добавил 362 кБ, тащить ещё одну
- * ради одной страницы неразумно, а радиальная раскладка — это тригонометрия
- * в десять строк.
+ * ради одной страницы неразумно, а раскладка в ряд — это просто деление
+ * ширины на число хостов.
  *
- * Это карта ПРИНАДЛЕЖНОСТИ, а не топология. Луч «подсеть — хост» означает
- * «адрес входит в этот CIDR», и ничего больше: профили сканирования не
- * выясняют, как устройства соединены между собой.
+ * Это карта ПРИНАДЛЕЖНОСТИ, а не топология: верхний узел — не настоящий
+ * коммутатор, которого мы не видим, а сама подсеть. Линия «подсеть — хост»
+ * означает «адрес входит в этот CIDR», и ничего больше: профили
+ * сканирования не выясняют, как устройства физически соединены между
+ * собой. Иконки устройств — тоже эвристика по открытым портам и
+ * производителю MAC, не гарантия.
  */
+import { HardDrive, Printer, Router, Server, Smartphone } from "lucide-react";
 
 const HOST = "#3987e5"; // проверенный синий
 const CENTER = "#199e70"; // проверенный aqua — узел подсети
-const EDGE = "#1e293b"; // slate-800, тонкие лучи
-const SURFACE = "#0f172a"; // slate-900 — фон для колец вокруг узлов
+const EDGE = "#475569"; // slate-600 — «кабель»
+const SURFACE = "#0f172a"; // slate-900 — фон/иконки поверх узлов
 
-/** Радиус узла по числу открытых портов. Площадь ∝ величине, поэтому корень. */
-function hostRadius(openPorts) {
-  return 7 + Math.sqrt(openPorts) * 3.2;
+const NODE = 34; // сторона квадрата устройства
+const SWITCH = 44; // сторона квадрата коммутатора
+const COL_WIDTH = 96; // расстояние между хостами по горизонтали
+const TOP_Y = 46;
+const HOST_Y = 168;
+const LABEL_GAP = 16;
+
+/**
+ * Грубая эвристика «что это за устройство» по тому, что видно снаружи —
+ * открытым портам и производителю MAC. Не диагностика, а подсказка:
+ * принтер почти наверняка держит порт 9100, а «сервер» — это просто
+ * «много открытых портов», под него попадёт и обычный ПК с файлшарингом.
+ */
+function deviceKind(host) {
+  const services = (host.services || []).map((s) => s.toLowerCase());
+  const vendor = (host.vendor || "").toLowerCase();
+  const os = (host.os || "").toLowerCase();
+  const has = (needle) => services.some((s) => s.includes(needle));
+
+  if (has("jetdirect") || has("ipp") || has("printer")) {
+    return { Icon: Printer, label: "принтер" };
+  }
+  if (os.includes("android") || os.includes("ios") || /iphone|android/.test(vendor)) {
+    return { Icon: Smartphone, label: "телефон" };
+  }
+  if (
+    ["mysql", "postgresql", "redis", "mongodb", "elastic"].some(has) ||
+    host.open_ports >= 5
+  ) {
+    return { Icon: Server, label: "сервер" };
+  }
+  if (/tp-link|netgear|d-link|mikrotik|ubiquiti|asus|keenetic|zyxel|cisco/.test(vendor)) {
+    return { Icon: Router, label: "роутер / точка доступа" };
+  }
+  return { Icon: HardDrive, label: "устройство" };
 }
 
 export function NetworkGraph({ cidr, hosts, onSelect, selectedIp }) {
@@ -29,64 +66,78 @@ export function NetworkGraph({ cidr, hosts, onSelect, selectedIp }) {
     );
   }
 
-  // Размер холста растёт с числом хостов, чтобы подписи не наезжали друг на друга
-  const ring = Math.max(120, Math.min(210, hosts.length * 22));
-  const pad = 78;
-  const size = (ring + pad) * 2;
-  const cx = size / 2;
-  const cy = size / 2;
+  const width = Math.max(360, hosts.length * COL_WIDTH + COL_WIDTH);
+  const height = HOST_Y + 56;
+  const switchX = width / 2;
 
-  const placed = hosts.map((h, i) => {
-    // Старт с −90°, чтобы первый хост оказался сверху
-    const angle = (i / hosts.length) * 2 * Math.PI - Math.PI / 2;
-    return {
-      ...h,
-      x: cx + Math.cos(angle) * ring,
-      y: cy + Math.sin(angle) * ring,
-      // Подпись уходит наружу от центра
-      anchor: Math.cos(angle) > 0.25 ? "start" : Math.cos(angle) < -0.25 ? "end" : "middle",
-      labelX: cx + Math.cos(angle) * (ring + 16),
-      labelY: cy + Math.sin(angle) * (ring + 16),
-    };
-  });
+  const placed = hosts.map((h, i) => ({
+    ...h,
+    x: COL_WIDTH / 2 + i * COL_WIDTH + (width - hosts.length * COL_WIDTH) / 2,
+    kind: deviceKind(h),
+  }));
 
   return (
     <div className="overflow-x-auto">
       <svg
-        viewBox={`0 0 ${size} ${size}`}
-        className="mx-auto block h-auto w-full max-w-2xl"
+        viewBox={`0 0 ${width} ${height}`}
+        className="mx-auto block h-auto w-full"
+        style={{ maxWidth: `${Math.min(width, 720)}px` }}
         role="img"
         aria-label={`Карта подсети ${cidr}: ${hosts.length} хостов`}
       >
-        {/* Лучи рисуем первыми, чтобы узлы легли поверх */}
+        {/* Кабели — прямые линии от коммутатора вниз к каждому устройству,
+            с маленьким квадратом-«портом» на обоих концах */}
         {placed.map((h) => (
-          <line key={`e-${h.ip}`} x1={cx} y1={cy} x2={h.x} y2={h.y} stroke={EDGE} strokeWidth="1" />
+          <g key={`e-${h.ip}`}>
+            <line x1={switchX} y1={TOP_Y + SWITCH / 2} x2={h.x} y2={HOST_Y - NODE / 2} stroke={EDGE} strokeWidth="1.5" />
+            <rect x={switchX - 2} y={TOP_Y + SWITCH / 2 - 2} width="4" height="4" fill={EDGE} />
+            <rect x={h.x - 2} y={HOST_Y - NODE / 2 - 2} width="4" height="4" fill={EDGE} />
+          </g>
         ))}
 
-        {/* Узел подсети */}
-        <circle cx={cx} cy={cy} r="26" fill={CENTER} stroke={SURFACE} strokeWidth="2" />
-        <text
-          x={cx}
-          y={cy + 44}
-          textAnchor="middle"
-          className="fill-slate-300"
-          fontSize="12"
-          fontFamily="ui-monospace, monospace"
-        >
-          {cidr}
-        </text>
+        {/* Коммутатор подсети — сверху по центру, как в Packet Tracer */}
+        <g>
+          <rect
+            x={switchX - SWITCH / 2}
+            y={TOP_Y}
+            width={SWITCH}
+            height={SWITCH}
+            rx="6"
+            fill={CENTER}
+            stroke={SURFACE}
+            strokeWidth="2"
+          />
+          <Router
+            x={switchX - SWITCH / 2 + 8}
+            y={TOP_Y + 8}
+            width={SWITCH - 16}
+            height={SWITCH - 16}
+            color={SURFACE}
+            aria-hidden="true"
+          />
+          <text
+            x={switchX}
+            y={TOP_Y - 8}
+            textAnchor="middle"
+            className="fill-slate-300"
+            fontSize="12"
+            fontFamily="ui-monospace, monospace"
+          >
+            {cidr}
+          </text>
+        </g>
 
-        {/* Хосты */}
+        {/* Устройства — в ряд, иконка по эвристике вместо голого кружка */}
         {placed.map((h) => {
           const selected = h.ip === selectedIp;
           return (
             <g
               key={h.ip}
               onClick={() => onSelect?.(h)}
-              className="cursor-pointer"
+              className="cursor-pointer outline-none"
               tabIndex={0}
               role="button"
-              aria-label={`${h.ip}, открытых портов: ${h.open_ports}`}
+              aria-label={`${h.ip}, ${h.kind.label}, открытых портов: ${h.open_ports}`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -94,23 +145,50 @@ export function NetworkGraph({ cidr, hosts, onSelect, selectedIp }) {
                 }
               }}
             >
-              {/* Прозрачный круг пошире — чтобы попасть мышью по мелкому узлу */}
-              <circle cx={h.x} cy={h.y} r="24" fill="transparent" />
-              <circle
-                cx={h.x}
-                cy={h.y}
-                r={hostRadius(h.open_ports)}
+              {/* Прозрачный прямоугольник пошире — чтобы попасть мышью по узлу */}
+              <rect
+                x={h.x - NODE / 2 - 8}
+                y={HOST_Y - NODE / 2 - 8}
+                width={NODE + 16}
+                height={NODE + 16}
+                fill="transparent"
+              />
+              <rect
+                x={h.x - NODE / 2}
+                y={HOST_Y - NODE / 2}
+                width={NODE}
+                height={NODE}
+                rx="6"
                 fill={HOST}
                 stroke={selected ? "#e2e8f0" : SURFACE}
                 strokeWidth="2"
               />
+              <h.kind.Icon
+                x={h.x - NODE / 2 + 6}
+                y={HOST_Y - NODE / 2 + 6}
+                width={NODE - 12}
+                height={NODE - 12}
+                color={SURFACE}
+                aria-hidden="true"
+              />
+              {h.open_ports > 0 && (
+                <text
+                  x={h.x + NODE / 2 - 2}
+                  y={HOST_Y - NODE / 2 + 2}
+                  textAnchor="end"
+                  className="fill-amber-300"
+                  fontSize="9"
+                  fontWeight="600"
+                >
+                  {h.open_ports}
+                </text>
+              )}
               <text
-                x={h.labelX}
-                y={h.labelY}
-                textAnchor={h.anchor}
-                dominantBaseline="middle"
+                x={h.x}
+                y={HOST_Y + NODE / 2 + LABEL_GAP}
+                textAnchor="middle"
                 className={selected ? "fill-slate-100" : "fill-slate-400"}
-                fontSize="11"
+                fontSize="10"
                 fontFamily="ui-monospace, monospace"
               >
                 {h.ip}
@@ -121,8 +199,8 @@ export function NetworkGraph({ cidr, hosts, onSelect, selectedIp }) {
       </svg>
 
       <p className="mt-2 text-center text-xs text-slate-500">
-        Размер узла — число открытых портов. Луч означает вхождение адреса в диапазон,
-        а не связь между устройствами.
+        Число у иконки — открытых портов. Иконка устройства и линия — эвристика по
+        открытым портам и MAC-производителю, не подтверждённая физическая связь.
       </p>
     </div>
   );
