@@ -23,7 +23,12 @@ vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    api: { getScan: vi.fn(), cancelScan: vi.fn(), scanReport: vi.fn() },
+    api: {
+      getScan: vi.fn(),
+      cancelScan: vi.fn(),
+      scanReport: vi.fn(),
+      scanChanges: vi.fn().mockResolvedValue(null),
+    },
   };
 });
 
@@ -98,6 +103,58 @@ const setup = () =>
       <ScanDetailPage />
     </MemoryRouter>,
   );
+
+describe("изменения с прошлого скана", () => {
+  it("показывает бейдж, когда появились новые хосты и порты", async () => {
+    api.scanChanges.mockResolvedValue({
+      base: { id: 3 },
+      compare: { id: 7 },
+      targets_differ: false,
+      hosts_added: [{ ip: "192.168.1.50", ports: [] }],
+      hosts_removed: [],
+      host_changes: [
+        {
+          ip: "192.168.1.10",
+          ports_opened: [{ port: 8080, protocol: "tcp", service: "http" }],
+          ports_closed: [],
+          services_changed: [],
+        },
+      ],
+      summary: { hosts_added: 1, hosts_removed: 0, ports_opened: 1, ports_closed: 0, hosts_changed: 1 },
+    });
+
+    setup();
+
+    expect(await screen.findByText(/Изменения с прошлого скана/)).toBeInTheDocument();
+    expect(screen.getByText(/скан #3/)).toBeInTheDocument();
+    expect(screen.getByText(/192\.168\.1\.50/)).toBeInTheDocument();
+  });
+
+  it("ничего не показывает, если сравнивать не с чем", async () => {
+    api.scanChanges.mockResolvedValue(null);
+    setup();
+
+    await screen.findByText("хостов найдено");
+    expect(screen.queryByText(/Изменения с прошлого скана/)).not.toBeInTheDocument();
+  });
+
+  it("ничего не показывает, если ничего нового не появилось (только закрытия)", async () => {
+    api.scanChanges.mockResolvedValue({
+      base: { id: 3 },
+      compare: { id: 7 },
+      targets_differ: false,
+      hosts_added: [],
+      hosts_removed: [{ ip: "192.168.1.99", ports: [] }],
+      host_changes: [],
+      summary: { hosts_added: 0, hosts_removed: 1, ports_opened: 0, ports_closed: 2, hosts_changed: 0 },
+    });
+
+    setup();
+
+    await screen.findByText("хостов найдено");
+    expect(screen.queryByText(/Изменения с прошлого скана/)).not.toBeInTheDocument();
+  });
+});
 
 describe("отображение результата", () => {
   it("показывает статистику", async () => {

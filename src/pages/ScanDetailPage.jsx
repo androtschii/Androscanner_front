@@ -10,6 +10,7 @@ import {
   FileText,
   Loader2,
   Monitor,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -235,6 +236,57 @@ function HostCard({ host, defaultOpen }) {
   );
 }
 
+/**
+ * Компактная сводка того, что изменилось с предыдущего скана этой же
+ * цели — тот же diff, что и на /diff, но пара сканов подбирается сама.
+ * Показывает только НОВОЕ (новые хосты/порты): закрывшиеся порты не
+ * расширяют поверхность атаки, шуметь ими здесь незачем — полную
+ * картину, включая закрытия, видно на странице сравнения.
+ */
+function ChangesSinceLastScan({ changes }) {
+  if (!changes) return null;
+
+  const newHosts = changes.summary.hosts_added;
+  const newPorts = changes.summary.ports_opened;
+  if (newHosts === 0 && newPorts === 0) return null;
+
+  return (
+    <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-800 bg-amber-950/30 px-4 py-3">
+      <Sparkles size={18} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+      <div className="text-sm">
+        <p className="font-medium text-amber-200">
+          Изменения с прошлого скана этой цели (скан #{changes.base.id})
+        </p>
+        <ul className="mt-1 space-y-0.5 text-amber-100/80">
+          {newHosts > 0 && (
+            <li>
+              Новых хостов: {newHosts} —{" "}
+              <span className="font-mono">
+                {changes.hosts_added.map((h) => h.ip).join(", ")}
+              </span>
+            </li>
+          )}
+          {newPorts > 0 && (
+            <li>
+              Новых открытых портов: {newPorts}
+              {changes.host_changes.length > 0 && (
+                <>
+                  {" — "}
+                  <span className="font-mono">
+                    {changes.host_changes
+                      .flatMap((h) => h.ports_opened.map((p) => `${h.ip}:${p.port}`))
+                      .join(", ")}
+                  </span>
+                </>
+              )}
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export function ScanDetailPage() {
   const { id } = useParams();
   const { token, user } = useAuth();
@@ -245,6 +297,7 @@ export function ScanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [changes, setChanges] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -255,6 +308,17 @@ export function ScanDetailPage() {
       setLoading(false);
     }
   }, [token, id]);
+
+  // Отдельный, не мешающий основной загрузке запрос: /changes может не
+  // найти, с чем сравнивать (первый скан цели), это нормальный случай,
+  // а не повод показывать ошибку на всей странице.
+  useEffect(() => {
+    if (scan?.status !== "done") return;
+    api
+      .scanChanges(token, id)
+      .then(setChanges)
+      .catch(() => setChanges(null));
+  }, [scan?.status, token, id]);
 
   useEffect(() => {
     load();
@@ -417,6 +481,8 @@ export function ScanDetailPage() {
 
             {result && !result.error && (
               <>
+                <ChangesSinceLastScan changes={changes} />
+
                 <div className="mb-6 grid grid-cols-3 gap-3">
                   <Stat label="хостов найдено" value={result.stats.hosts_total} />
                   <Stat label="из них живых" value={result.stats.hosts_up} />

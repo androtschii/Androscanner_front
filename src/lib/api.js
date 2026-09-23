@@ -48,6 +48,8 @@ export const api = {
     return request(`/scans?${q}`, { token });
   },
   getScan: (token, id) => request(`/scans/${id}`, { token }),
+  // null, если сравнивать не с чем (первый скан цели) или сам скан ещё не завершён
+  scanChanges: (token, id) => request(`/scans/${id}/changes`, { token }),
   createScan: (token, target, profile) =>
     request("/scans", { method: "POST", token, body: { target, profile } }),
   cancelScan: (token, id) => request(`/scans/${id}/cancel`, { method: "POST", token }),
