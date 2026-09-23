@@ -8,8 +8,13 @@ import {
   ChevronRight,
   Download,
   FileText,
+  HardDrive,
   Loader2,
   Monitor,
+  Printer,
+  Router,
+  Server,
+  Smartphone,
   Sparkles,
   XCircle,
 } from "lucide-react";
@@ -20,6 +25,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { TicTacToe } from "../components/TicTacToe";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { classifyDevice } from "../lib/deviceKind";
 import { assessPortRisk } from "../lib/portRisk";
 import { isPending } from "../lib/scanStatus";
 import { formatElapsed, scanDurationSeconds, useElapsed } from "../lib/useElapsed";
@@ -178,9 +184,29 @@ function PortsTable({ ports }) {
   );
 }
 
+const DEVICE_ICON = {
+  printer: Printer,
+  phone: Smartphone,
+  computer: Monitor,
+  server: Server,
+  router: Router,
+  unknown: HardDrive,
+};
+
 function HostCard({ host, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
   const openCount = host.ports.filter((p) => p.state === "open").length;
+
+  // Эвристика по открытым сервисам/MAC/ОС — не диагностика, а подсказка
+  // «телефон это или ноутбук», см. lib/deviceKind.js (общий модуль
+  // с картой сети).
+  const device = classifyDevice({
+    services: host.ports.map((p) => p.service).filter(Boolean),
+    vendor: host.vendor,
+    os: host.os[0]?.name,
+    openPortsCount: openCount,
+  });
+  const DeviceIcon = DEVICE_ICON[device.kind];
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-800">
@@ -197,11 +223,12 @@ function HostCard({ host, defaultOpen }) {
           ) : (
             <ChevronRight size={16} className="text-slate-500" aria-hidden="true" />
           )}
-          <Monitor size={15} className="text-slate-500" aria-hidden="true" />
+          <DeviceIcon size={15} className="text-slate-500" aria-hidden="true" title={device.label} />
           <span className="font-mono text-base text-slate-100">{host.ip}</span>
           {host.hostnames.length > 0 && (
             <span className="text-sm text-slate-400">{host.hostnames.join(", ")}</span>
           )}
+          <span className="text-xs text-slate-500">— {device.label}</span>
         </div>
         <span className="text-xs text-slate-400">
           {openCount} откр. из {host.ports.length}

@@ -13,7 +13,17 @@
  * собой. Иконки устройств — тоже эвристика по открытым портам и
  * производителю MAC, не гарантия.
  */
-import { HardDrive, Printer, Router, Server, Smartphone } from "lucide-react";
+import { HardDrive, Monitor, Printer, Router, Server, Smartphone } from "lucide-react";
+import { classifyDevice } from "../lib/deviceKind";
+
+const KIND_ICON = {
+  printer: Printer,
+  phone: Smartphone,
+  computer: Monitor,
+  server: Server,
+  router: Router,
+  unknown: HardDrive,
+};
 
 const HOST = "#3987e5"; // проверенный синий
 const CENTER = "#199e70"; // проверенный aqua — узел подсети
@@ -27,34 +37,14 @@ const TOP_Y = 46;
 const HOST_Y = 168;
 const LABEL_GAP = 16;
 
-/**
- * Грубая эвристика «что это за устройство» по тому, что видно снаружи —
- * открытым портам и производителю MAC. Не диагностика, а подсказка:
- * принтер почти наверняка держит порт 9100, а «сервер» — это просто
- * «много открытых портов», под него попадёт и обычный ПК с файлшарингом.
- */
 function deviceKind(host) {
-  const services = (host.services || []).map((s) => s.toLowerCase());
-  const vendor = (host.vendor || "").toLowerCase();
-  const os = (host.os || "").toLowerCase();
-  const has = (needle) => services.some((s) => s.includes(needle));
-
-  if (has("jetdirect") || has("ipp") || has("printer")) {
-    return { Icon: Printer, label: "принтер" };
-  }
-  if (os.includes("android") || os.includes("ios") || /iphone|android/.test(vendor)) {
-    return { Icon: Smartphone, label: "телефон" };
-  }
-  if (
-    ["mysql", "postgresql", "redis", "mongodb", "elastic"].some(has) ||
-    host.open_ports >= 5
-  ) {
-    return { Icon: Server, label: "сервер" };
-  }
-  if (/tp-link|netgear|d-link|mikrotik|ubiquiti|asus|keenetic|zyxel|cisco/.test(vendor)) {
-    return { Icon: Router, label: "роутер / точка доступа" };
-  }
-  return { Icon: HardDrive, label: "устройство" };
+  const { kind, label } = classifyDevice({
+    services: host.services,
+    vendor: host.vendor,
+    os: host.os,
+    openPortsCount: host.open_ports,
+  });
+  return { Icon: KIND_ICON[kind], label };
 }
 
 export function NetworkGraph({ cidr, hosts, onSelect, selectedIp }) {

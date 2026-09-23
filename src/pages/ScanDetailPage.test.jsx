@@ -233,6 +233,40 @@ describe("таблица портов", () => {
   });
 });
 
+describe("тип устройства", () => {
+  it("показывает подпись по определённой ОС", async () => {
+    setup();
+    await screen.findByText("192.168.1.10");
+    // Фикстура result() задаёт os: [{ name: "Linux 5.X", ... }]
+    expect(screen.getByText(/компьютер \(Linux\)/)).toBeInTheDocument();
+  });
+
+  it("не падает, если ОС не определена", async () => {
+    api.getScan.mockResolvedValue(
+      scan({
+        result: JSON.stringify(
+          result({
+            hosts: [
+              {
+                ip: "192.168.1.20",
+                hostnames: [],
+                state: "up",
+                mac: null,
+                vendor: null,
+                os: [],
+                ports: [port(9100, { service: "jetdirect" })],
+              },
+            ],
+          }),
+        ),
+      }),
+    );
+    setup();
+    await screen.findByText("192.168.1.20");
+    expect(screen.getByText(/принтер/)).toBeInTheDocument();
+  });
+});
+
 describe("сворачивание хостов", () => {
   it("первый хост раскрыт", async () => {
     setup();
