@@ -28,6 +28,7 @@ vi.mock("../lib/api", async (importOriginal) => {
       cancelScan: vi.fn(),
       scanReport: vi.fn(),
       scanChanges: vi.fn().mockResolvedValue(null),
+      createScan: vi.fn(),
     },
   };
 });
@@ -388,6 +389,58 @@ describe("выгрузка PDF", () => {
         expect.objectContaining({ description: expect.stringContaining("Pango") }),
       ),
     );
+  });
+});
+
+describe("пересканирование", () => {
+  it("запускает новый скан с теми же целью и профилем", async () => {
+    const user = userEvent.setup();
+    api.createScan.mockResolvedValue({ id: 99, target: "192.168.1.0/24", profile: "quick" });
+    setup();
+    await screen.findByText("192.168.1.0/24");
+
+    await user.click(screen.getByRole("button", { name: /Пересканировать/ }));
+
+    await waitFor(() =>
+      expect(api.createScan).toHaveBeenCalledWith("t", "192.168.1.0/24", "quick"),
+    );
+  });
+
+  it("не показывается viewer", async () => {
+    mockAuth.value = { user: { id: 1, role: "viewer" }, token: "t" };
+    setup();
+    await screen.findByText("192.168.1.0/24");
+    expect(screen.queryByRole("button", { name: /Пересканировать/ })).not.toBeInTheDocument();
+  });
+
+  it("не показывается, пока скан ещё выполняется", async () => {
+    api.getScan.mockResolvedValue(scan({ status: "running", result: null }));
+    setup();
+    await screen.findByText("192.168.1.0/24");
+    expect(screen.queryByRole("button", { name: /Пересканировать/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("ссылка на веб-интерфейс", () => {
+  it("показывается для открытого http-порта", async () => {
+    setup();
+    await screen.findByText("192.168.1.0/24");
+    const link = screen.getByTitle("Открыть http://192.168.1.10:80 в браузере");
+    expect(link).toHaveAttribute("href", "http://192.168.1.10:80");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("не показывается для закрытого порта, даже если сервис http(s)", async () => {
+    setup();
+    await screen.findByText("192.168.1.0/24");
+    // Порт 443 в фикстуре закрыт (state: "closed")
+    expect(screen.queryByTitle(/443/)).not.toBeInTheDocument();
+  });
+
+  it("не показывается для не-веб сервиса (ssh)", async () => {
+    setup();
+    await screen.findByText("192.168.1.0/24");
+    expect(screen.queryByTitle(/:22/)).not.toBeInTheDocument();
   });
 });
 

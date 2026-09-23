@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,11 +7,13 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  ExternalLink,
   FileText,
   HardDrive,
   Loader2,
   Monitor,
   Printer,
+  Radar,
   Router,
   Server,
   Smartphone,
@@ -109,7 +111,17 @@ function RiskBadge({ port, service, state }) {
   );
 }
 
-function PortsTable({ ports }) {
+/** http/https на открытом порту — сервис, у которого имеет смысл
+ * веб-интерфейс: например, роутер или NAS с админкой на 80/8080. */
+function webUrl(hostIp, port) {
+  const svc = (port.service || "").toLowerCase();
+  if (port.state !== "open") return null;
+  if (svc.includes("https")) return `https://${hostIp}:${port.port}`;
+  if (svc.includes("http")) return `http://${hostIp}:${port.port}`;
+  return null;
+}
+
+function PortsTable({ ports, hostIp }) {
   const [sortBy, setSortBy] = useState("port");
   const [onlyOpen, setOnlyOpen] = useState(false);
 
@@ -171,6 +183,17 @@ function PortsTable({ ports }) {
                 <td className="px-4 py-2">
                   {p.service || "—"}
                   <RiskBadge port={p.port} service={p.service} state={p.state} />
+                  {webUrl(hostIp, p) && (
+                    <a
+                      href={webUrl(hostIp, p)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Открыть ${webUrl(hostIp, p)} в браузере`}
+                      className="ml-2 inline-flex items-center text-slate-500 hover:text-sky-400"
+                    >
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </a>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-slate-400">
                   {[p.product, p.version].filter(Boolean).join(" ") || "—"}
@@ -257,7 +280,7 @@ function HostCard({ host, defaultOpen }) {
               )}
             </dl>
           )}
-          <PortsTable ports={host.ports} />
+          <PortsTable ports={host.ports} hostIp={host.ip} />
         </>
       )}
     </div>
@@ -317,6 +340,7 @@ function ChangesSinceLastScan({ changes }) {
 
 export function ScanDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { token, user } = useAuth();
   const { confirm, dialogProps } = useConfirm();
 
@@ -325,6 +349,7 @@ export function ScanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [rescanBusy, setRescanBusy] = useState(false);
   const [changes, setChanges] = useState(null);
 
   const load = useCallback(async () => {
@@ -386,6 +411,19 @@ export function ScanDetailPage() {
     }
   }
 
+  async function rescan() {
+    setRescanBusy(true);
+    try {
+      const created = await api.createScan(token, scan.target, scan.profile);
+      toast.success(`Скан ${created.target} поставлен в очередь`);
+      navigate(`/scans/${created.id}`);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRescanBusy(false);
+    }
+  }
+
   async function cancel() {
     const ok = await confirm({
       title: "Отменить скан?",
@@ -414,6 +452,8 @@ export function ScanDetailPage() {
   // остальных, но настоящая проверка — на бэкенде.
   const canCancel =
     scan && isPending(scan.status) && (user?.role === "admin" || scan.created_by === user?.id);
+  // Как на /scans: запускать сканы могут admin и analyst, не viewer
+  const canScan = user?.role === "admin" || user?.role === "analyst";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -473,6 +513,21 @@ export function ScanDetailPage() {
                   )}
                   PDF
                 </button>
+                {canScan && !isPending(scan.status) && (
+                  <button
+                    onClick={rescan}
+                    disabled={rescanBusy}
+                    title="Запустить новый скан той же цели тем же профилем"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {rescanBusy ? (
+                      <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Radar size={15} aria-hidden="true" />
+                    )}
+                    Пересканировать
+                  </button>
+                )}
               </div>
             </div>
 
