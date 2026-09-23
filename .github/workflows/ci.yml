@@ -30,3 +30,8 @@ jobs:
       # и не поймают ошибку, которая проявляется только при бандлинге.
       - name: Сборка
         run: npm run build
+
+      # Docker не был установлен на машине разработки — пусть хотя бы
+      # здесь ломается, если Dockerfile перестанет собираться
+      - name: Docker-образ
+        run: docker build -t androscanner-frontend .

@@ -26,6 +26,23 @@ npm run dev
 (по умолчанию http://127.0.0.1:8000), и этот origin должен быть в
 `CORS_ORIGINS` бэкенда — иначе браузер заблокирует запросы.
 
+## Запуск через Docker
+
+Отдельно этот репозиторий собирается так:
+
+```bash
+docker build -t androscanner-frontend --build-arg VITE_API_URL=http://localhost:8000 .
+docker run -p 5173:80 androscanner-frontend
+```
+
+Но обычно нужнее не это, а весь стек разом — см. `docker compose up` в
+[Androscanner_back](https://github.com/androtschii/Androscanner_back)
+(там уже поднимает и бэкенд, и этот сайт сервисом `web`).
+
+Двухстадийная сборка: Node собирает статику, раздаёт её лёгкий nginx —
+адрес API (`VITE_API_URL`) вшивается в JS-бандл на этапе сборки, поменять
+после уже нельзя, нужно пересобирать образ.
+
 ## Страницы
 
 | Путь | Что показывает | Кому |
