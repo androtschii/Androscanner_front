@@ -483,7 +483,7 @@ export function ScanDetailPage() {
               <>
                 <ChangesSinceLastScan changes={changes} />
 
-                <div className="mb-6 grid grid-cols-3 gap-3">
+                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <Stat label="хостов найдено" value={result.stats.hosts_total} />
                   <Stat label="из них живых" value={result.stats.hosts_up} />
                   <Stat label="открытых портов" value={result.stats.open_ports} />

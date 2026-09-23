@@ -154,7 +154,7 @@ export function NetworkPage() {
 
         {map && allHosts.length > 0 && (
           <>
-            <div className="mb-6 grid grid-cols-3 gap-3">
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat label="хостов найдено" value={map.totals.hosts} />
               <Stat label="диапазонов" value={map.totals.networks} />
               <Stat label="открытых портов" value={map.totals.open_ports} />

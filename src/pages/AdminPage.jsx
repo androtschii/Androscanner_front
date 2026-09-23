@@ -140,7 +140,7 @@ function ScopesSection({ token, confirm }) {
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-900 text-slate-400">
             <tr>
@@ -304,7 +304,7 @@ function UsersSection({ token, currentUserId, confirm }) {
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-900 text-slate-400">
             <tr>
@@ -440,7 +440,7 @@ function AuditSection({ token }) {
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-900 text-slate-400">
             <tr>

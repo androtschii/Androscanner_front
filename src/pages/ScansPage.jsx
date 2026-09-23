@@ -366,7 +366,7 @@ export function ScansPage() {
 
         {listError && <p className="mb-3 text-sm text-red-400">{listError}</p>}
 
-        <div className="overflow-hidden rounded-xl border border-slate-800">
+        <div className="overflow-x-auto rounded-xl border border-slate-800">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-900 text-slate-400">
               <tr>
