@@ -234,6 +234,32 @@ describe("таблица портов", () => {
   });
 });
 
+describe("копирование IP хоста", () => {
+  it("у адреса хоста есть кнопка копирования", async () => {
+    setup();
+    await screen.findByText("192.168.1.10");
+    expect(screen.getByTitle("Скопировать адрес")).toBeInTheDocument();
+  });
+
+  it("клик по кнопке копирования не сворачивает карточку хоста", async () => {
+    const user = userEvent.setup();
+    const two = result({
+      hosts: [
+        { ...result().hosts[0] },
+        { ip: "192.168.1.11", hostnames: [], mac: null, vendor: null, os: [], state: "up", ports: [] },
+      ],
+    });
+    api.getScan.mockResolvedValue(scan({ result: JSON.stringify(two) }));
+    setup();
+    await screen.findByText("22"); // первый хост раскрыт по умолчанию
+
+    await user.click(screen.getAllByTitle("Скопировать адрес")[0]);
+
+    // Порт 22 первого (раскрытого) хоста всё ещё виден — карточка не свернулась
+    expect(screen.getByText("22")).toBeInTheDocument();
+  });
+});
+
 describe("тип устройства", () => {
   it("показывает подпись по определённой ОС", async () => {
     setup();

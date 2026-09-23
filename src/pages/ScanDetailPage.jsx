@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { CopyableIp } from "../components/CopyableIp";
 import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
 import { TicTacToe } from "../components/TicTacToe";
@@ -233,10 +234,19 @@ function HostCard({ host, defaultOpen }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-800">
-      {/* Шапка — кнопка: хосты сворачиваются, чтобы длинный список
-          не приходилось прокручивать целиком */}
-      <button
+      {/* Шапка сворачивается по клику, как кнопка (role+tabIndex+onKeyDown),
+          но div, а не <button>: внутри — настоящая кнопка копирования IP,
+          а кнопку в кнопку вкладывать нельзя — невалидный HTML. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
         className="flex w-full flex-wrap items-center justify-between gap-2 bg-slate-900 px-4 py-3 text-left hover:bg-slate-800/60"
         aria-expanded={open}
       >
@@ -247,7 +257,9 @@ function HostCard({ host, defaultOpen }) {
             <ChevronRight size={16} className="text-slate-500" aria-hidden="true" />
           )}
           <DeviceIcon size={15} className="text-slate-500" aria-hidden="true" title={device.label} />
-          <span className="font-mono text-base text-slate-100">{host.ip}</span>
+          <span className="text-base text-slate-100">
+            <CopyableIp value={host.ip} />
+          </span>
           {host.hostnames.length > 0 && (
             <span className="text-sm text-slate-400">{host.hostnames.join(", ")}</span>
           )}
@@ -256,7 +268,7 @@ function HostCard({ host, defaultOpen }) {
         <span className="text-xs text-slate-400">
           {openCount} откр. из {host.ports.length}
         </span>
-      </button>
+      </div>
 
       {open && (
         <>
