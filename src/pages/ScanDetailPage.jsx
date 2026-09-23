@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Header } from "../components/Header";
 import { StatusBadge } from "../components/StatusBadge";
+import { TicTacToe } from "../components/TicTacToe";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { assessPortRisk } from "../lib/portRisk";
@@ -455,21 +456,24 @@ export function ScanDetailPage() {
             )}
 
             {isPending(scan.status) && (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-slate-400">
-                <div className="flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                  {scan.status === "queued" ? "В очереди…" : "Скан выполняется…"}
+              <>
+                <div className="mb-6 flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-6 text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                    {scan.status === "queued" ? "В очереди…" : "Скан выполняется…"}
+                  </div>
+                  {/* Живой секундомер — без него не видно, движется ли
+                      процесс вообще: тяжёлые профили (vuln, full) идут
+                      минутами, и статичная надпись читалась бы как зависание */}
+                  <span className="font-mono text-2xl text-slate-200">
+                    {formatElapsed(elapsedSeconds)}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    профиль «{scan.profile}» — страница обновится сама
+                  </span>
                 </div>
-                {/* Живой секундомер — без него не видно, движется ли
-                    процесс вообще: тяжёлые профили (vuln, full) идут
-                    минутами, и статичная надпись читалась бы как зависание */}
-                <span className="font-mono text-2xl text-slate-200">
-                  {formatElapsed(elapsedSeconds)}
-                </span>
-                <span className="text-xs text-slate-500">
-                  профиль «{scan.profile}» — страница обновится сама
-                </span>
-              </div>
+                <TicTacToe />
+              </>
             )}
 
             {result?.error && (
