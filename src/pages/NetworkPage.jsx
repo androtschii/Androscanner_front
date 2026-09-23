@@ -1,11 +1,32 @@
 import { useEffect, useState } from "react";
 import { Download, Table2, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { CopyableIp } from "../components/CopyableIp";
 import { Header } from "../components/Header";
 import { NetworkGraph } from "../components/NetworkGraph";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, api } from "../lib/api";
 import { downloadCsv } from "../lib/csv";
+import { classifyDevice } from "../lib/deviceKind";
+
+const KIND_LABELS = {
+  all: "Все типы",
+  phone: "Телефоны",
+  computer: "Компьютеры",
+  server: "Серверы",
+  router: "Роутеры / точки доступа",
+  printer: "Принтеры",
+  unknown: "Прочее",
+};
+
+function hostKind(h) {
+  return classifyDevice({
+    services: h.services,
+    vendor: h.vendor,
+    os: h.os,
+    openPortsCount: h.open_ports,
+  }).kind;
+}
 
 function HostDetails({ host }) {
   if (!host) {
@@ -28,7 +49,9 @@ function HostDetails({ host }) {
 
   return (
     <>
-      <h3 className="mb-3 font-mono text-lg text-slate-100">{host.ip}</h3>
+      <h3 className="mb-3 text-lg text-slate-100">
+        <CopyableIp value={host.ip} />
+      </h3>
       <dl className="space-y-1.5 text-sm">
         {rows.map(([label, value]) => (
           <div key={label} className="flex gap-2">
@@ -57,7 +80,9 @@ function HostTable({ hosts }) {
         <tbody>
           {hosts.map((h) => (
             <tr key={h.ip} className="border-t border-slate-800">
-              <td className="px-4 py-2 font-mono">{h.ip}</td>
+              <td className="px-4 py-2">
+                <CopyableIp value={h.ip} />
+              </td>
               <td className="px-4 py-2 text-slate-400">{h.hostnames.join(", ") || "—"}</td>
               <td className="px-4 py-2 tabular-nums">{h.open_ports}</td>
               <td className="px-4 py-2 text-slate-400">{h.services.join(", ") || "—"}</td>
@@ -75,6 +100,7 @@ export function NetworkPage() {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [asTable, setAsTable] = useState(false);
+  const [kindFilter, setKindFilter] = useState("all");
 
   useEffect(() => {
     api
@@ -88,6 +114,16 @@ export function NetworkPage() {
   const allHosts = map
     ? [...map.networks.flatMap((n) => n.hosts), ...map.ungrouped]
     : [];
+
+  function byKind(hosts) {
+    return kindFilter === "all" ? hosts : hosts.filter((h) => hostKind(h) === kindFilter);
+  }
+
+  const filteredHosts = byKind(allHosts);
+  const filteredNetworks = map
+    ? map.networks.map((n) => ({ ...n, hosts: byKind(n.hosts) }))
+    : [];
+  const filteredUngrouped = map ? byKind(map.ungrouped) : [];
 
   function exportCsv() {
     downloadCsv(
@@ -106,9 +142,9 @@ export function NetworkPage() {
           get: (h) => (h.last_seen ? new Date(h.last_seen).toLocaleString("ru-RU") : ""),
         },
       ],
-      allHosts,
+      filteredHosts,
     );
-    toast.success(`Выгружено хостов: ${allHosts.length}`);
+    toast.success(`Выгружено хостов: ${filteredHosts.length}`);
   }
 
   return (
@@ -123,7 +159,19 @@ export function NetworkPage() {
             </p>
           </div>
           {allHosts.length > 0 && (
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <select
+                value={kindFilter}
+                onChange={(e) => setKindFilter(e.target.value)}
+                aria-label="Фильтр по типу устройства"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-300 outline-none focus:border-sky-500"
+              >
+                {Object.entries(KIND_LABELS).map(([kind, label]) => (
+                  <option key={kind} value={kind}>
+                    {label}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() => setAsTable((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
@@ -160,12 +208,19 @@ export function NetworkPage() {
               <Stat label="открытых портов" value={map.totals.open_ports} />
             </div>
 
+            {kindFilter !== "all" && (
+              <p className="mb-4 text-sm text-slate-400">
+                Показано {filteredHosts.length} из {allHosts.length} хостов — фильтр «
+                {KIND_LABELS[kindFilter]}»
+              </p>
+            )}
+
             {asTable ? (
-              <HostTable hosts={allHosts} />
+              <HostTable hosts={filteredHosts} />
             ) : (
               <>
                 <div className="space-y-6">
-                  {map.networks.map((n) => (
+                  {filteredNetworks.map((n) => (
                     <section key={n.cidr} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                       <h2 className="mb-1 font-medium text-slate-100">
                         {n.cidr}
@@ -185,16 +240,16 @@ export function NetworkPage() {
                   ))}
                 </div>
 
-                {map.ungrouped.length > 0 && (
+                {filteredUngrouped.length > 0 && (
                   <section className="mt-6 rounded-xl border border-amber-900/60 bg-slate-900 p-4">
                     <h2 className="mb-1 font-medium text-amber-300">
-                      Вне разрешённых диапазонов ({map.ungrouped.length})
+                      Вне разрешённых диапазонов ({filteredUngrouped.length})
                     </h2>
                     <p className="mb-3 text-sm text-slate-400">
                       Эти хосты найдены сканами, но сейчас не попадают ни в один диапазон —
                       скорее всего, диапазон убрали из allowed-scope после скана.
                     </p>
-                    <HostTable hosts={map.ungrouped} />
+                    <HostTable hosts={filteredUngrouped} />
                   </section>
                 )}
 

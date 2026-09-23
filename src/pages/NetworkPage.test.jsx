@@ -179,6 +179,54 @@ describe("таблица-двойник", () => {
   });
 });
 
+describe("фильтр по типу устройства", () => {
+  it("по умолчанию показывает все хосты", async () => {
+    const user = userEvent.setup();
+    api.networkMap.mockResolvedValue(
+      map({
+        networks: [
+          {
+            cidr: "192.168.1.0/24",
+            hosts: [host("192.168.1.10", { os: "Android 14" }), host("192.168.1.11")],
+          },
+        ],
+      }),
+    );
+    setup();
+    await screen.findByRole("img", { name: /Карта подсети/ });
+    await user.click(screen.getByRole("button", { name: /Таблица/ }));
+
+    expect(screen.getByText("192.168.1.10")).toBeInTheDocument();
+    expect(screen.getByText("192.168.1.11")).toBeInTheDocument();
+  });
+
+  it("оставляет только выбранный тип", async () => {
+    const user = userEvent.setup();
+    api.networkMap.mockResolvedValue(
+      map({
+        networks: [
+          {
+            cidr: "192.168.1.0/24",
+            hosts: [host("192.168.1.10", { os: "Android 14" }), host("192.168.1.11")],
+          },
+        ],
+      }),
+    );
+    setup();
+    await screen.findByRole("img", { name: /Карта подсети/ });
+    await user.click(screen.getByRole("button", { name: /Таблица/ }));
+
+    await user.selectOptions(
+      screen.getByLabelText("Фильтр по типу устройства"),
+      "Телефоны",
+    );
+
+    expect(screen.getByText("192.168.1.10")).toBeInTheDocument();
+    expect(screen.queryByText("192.168.1.11")).not.toBeInTheDocument();
+    expect(screen.getByText(/Показано 1 из 2 хостов/)).toBeInTheDocument();
+  });
+});
+
 describe("хосты вне диапазонов", () => {
   it("выносятся отдельно с объяснением", async () => {
     api.networkMap.mockResolvedValue(
